@@ -1,0 +1,95 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  phone        String?
+  address      Address?
+  orders       Order[]
+  role         Role     @relation(fields: [roleId], references: [id])
+  roleId       String
+}
+
+model Role {
+  id    String @id @default(uuid())
+  name  String @unique
+  users User[]
+}
+
+model Address {
+  id      String  @id @default(uuid())
+  user    User    @relation(fields: [userId], references: [id])
+  userId  String  @unique
+  street  String
+  city    String
+  state   String
+  zipCode String
+  details String?
+}
+
+model Order {
+  id            String      @id @default(uuid())
+  user          User        @relation(fields: [userId], references: [id])
+  userId        String
+  lines         LineOrder[]
+  totalPrice    Float
+  totalDiscount Float
+  deliveryTax   Float
+  finalPrice    Float
+  status        String
+  createdAt     DateTime    @default(now())
+}
+
+model LineOrder {
+  id                   String  @id @default(uuid())
+  order                Order   @relation(fields: [orderId], references: [id])
+  orderId              String
+  bouquet              Bouquet @relation(fields: [bouquetId], references: [id])
+  bouquetId            String
+  quantity             Int
+  priceBouquetSnapshot Float
+  totalPrice           Float
+}
+
+model Bouquet {
+  id        String        @id @default(uuid())
+  price     Float
+  items     ItemBouquet[] @relation("BouquetItems")
+  lineOrder LineOrder[]
+}
+
+model ItemBouquet {
+  id            String  @id @default(uuid())
+  bouquet       Bouquet @relation("BouquetItems", fields: [bouquetId], references: [id])
+  bouquetId     String
+  product       Product @relation(fields: [productId], references: [id])
+  productId     String
+  quantity      Int
+  priceSnapshot Float
+}
+
+model Product {
+  id           String        @id @default(uuid())
+  name         String
+  type         String
+  description  String?
+  price        Float
+  stock        Int
+  imageUrl     String?
+  itemBouquets ItemBouquet[]
+}
