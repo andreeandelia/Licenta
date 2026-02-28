@@ -1,0 +1,38 @@
+.sale-code {
+  width: 100%;
+  background: linear-gradient(90deg, #ff3b92 0%, #8b5cf6 100%);
+}
+
+.sale-code-content {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 22px;
+}
+
+.sale-text {
+  color: #ffffff;
+  letter-spacing: 0.2px;
+  font-size: 15px;
+  margin-right: 20px;
+}
+
+.code {
+  font-weight: 700;
+}
+
+.sale-btn {
+  text-decoration: none;
+  padding: 8px 22px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 13px;
+  color: #ff3b92;
+  background: #ffffff;
+  box-shadow: 0 10px 20px rgba(139, 92, 246, 0.18);
+}
+
+.sale-btn:hover {
+  background: #f0e9ec;
+}

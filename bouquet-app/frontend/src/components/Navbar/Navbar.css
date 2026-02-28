@@ -1,0 +1,59 @@
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  width: 100%;
+  background: #ffffff;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+}
+
+.nav-content {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 22px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.brand-logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 30% 30%, #ffd4e9 0%, #f2c6ff 70%);
+  font-size: 16px;
+}
+
+.brand-name {
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: 0.2px;
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+}
+
+.login-btn {
+  text-decoration: none;
+  padding: 8px 22px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 13px;
+  color: #ffffff;
+  background: linear-gradient(90deg, #ff3b92 0%, #8b5cf6 100%);
+  box-shadow: 0 10px 20px rgba(139, 92, 246, 0.18);
+}
+
+.login-btn:hover {
+  background: linear-gradient(90deg, #e50079 0%, #c237be 50%, #9b16f7 100%);
+}

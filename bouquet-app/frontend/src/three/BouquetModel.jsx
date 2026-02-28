@@ -12,5 +12,13 @@ export default function BouquetModel() {
     }
   });
 
-  return <primitive ref={modelRef} object={gltf.scene} scale={3} position={[0, -0.5, 0]} rotation={[0, 0, -0.15]} />;
+  return (
+    <primitive
+      ref={modelRef}
+      object={gltf.scene}
+      scale={3.5}
+      position={[0, -0.5, 0]}
+      rotation={[0, 0, -0.15]}
+    />
+  );
 }

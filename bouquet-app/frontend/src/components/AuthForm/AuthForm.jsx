@@ -122,7 +122,7 @@ export default function AuthForm({ initialMode = "login" }) {
           </span>
         </div>
 
-        <h1 className="auth-title">Welcome!</h1>
+        <h1 className="auth-title">Welcome to Bloomery!</h1>
         <p className="auth-subtitle">Login or create an account to continue.</p>
 
         <div className="auth-tabs" role="tablist" aria-label="Auth tabs">

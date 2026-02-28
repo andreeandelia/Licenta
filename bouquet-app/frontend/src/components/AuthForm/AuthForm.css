@@ -157,6 +157,10 @@
   cursor: not-allowed;
 }
 
+.submit:hover {
+  background: linear-gradient(90deg, #e50079 0%, #c237be 50%, #9b16f7 100%);
+}
+
 /* Footer */
 
 .auth-footer {
@@ -172,6 +176,9 @@ p {
 }
 
 .pass-fgt {
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
   cursor: pointer;
   margin-bottom: 25px;
 }
