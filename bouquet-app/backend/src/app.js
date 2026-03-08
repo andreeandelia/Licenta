@@ -3,6 +3,8 @@ import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import dotenv from 'dotenv'
 import authRouter from '../routers/auth-router.js'
+import productRouter from '../routers/product-router.js'
+import wishlistRouter from '../routers/wishlist-router.js'
 
 dotenv.config()
 
@@ -18,6 +20,8 @@ app.use(cookieParser());
 
 // routes
 app.use('/api/auth', authRouter);
+app.use('/api/products', productRouter);
+app.use('/api/wishlist', wishlistRouter);
 
 app.use((err, req, res, next) => {
     console.error(err);

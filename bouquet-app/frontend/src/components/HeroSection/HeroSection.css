@@ -85,6 +85,11 @@
   background: linear-gradient(90deg, #e50079 0%, #c237be 50%, #9b16f7 100%);
 }
 
+.hero-primary:hover .stars {
+  display: block;
+  filter: drop-shadow(0 0 10px #fffdef);
+}
+
 /* RIGHT (3D container) */
 .hero-right {
   display: flex;

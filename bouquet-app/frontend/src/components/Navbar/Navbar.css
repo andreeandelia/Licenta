@@ -57,3 +57,97 @@
 .login-btn:hover {
   background: linear-gradient(90deg, #e50079 0%, #c237be 50%, #9b16f7 100%);
 }
+
+/* Icon buttons */
+.icon-btn {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #ffffff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: #111827;
+  text-decoration: none;
+  margin: 0 4px;
+}
+
+.icon-btn:hover {
+  background: rgba(255, 59, 146, 0.1);
+}
+
+/* Cart badge */
+.badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #e50079;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  border: 2px solid #fff;
+}
+
+/* Dropdown */
+.menu {
+  position: relative;
+}
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 200px;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  z-index: 2000;
+}
+
+.dropdown-head {
+  padding: 12px 14px 10px;
+}
+
+.dropdown-name {
+  font-weight: 700;
+  color: #111827;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.dropdown-sep {
+  height: 1px;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.dropdown-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #111827;
+  background: #fff;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.dropdown-item:hover {
+  background: rgba(255, 59, 146, 0.1);
+}
+
+.dropdown-item.danger {
+  color: #e50079;
+}

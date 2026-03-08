@@ -1,9 +1,14 @@
 import { useMemo, useState } from "react";
+import { useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { loadMe } from "../../stores/actions/auth-actions";
 import "./AuthForm.css";
 
 const API_BASE = "http://localhost:8080";
 
 export default function AuthForm({ initialMode = "login" }) {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
   const [mode, setMode] = useState(initialMode);
 
   const [name, setName] = useState("");
@@ -87,20 +92,18 @@ export default function AuthForm({ initialMode = "login" }) {
         return;
       }
 
-      // temporary: fetch user data after login/register to confirm auth cookie is set
-      const meRes = await fetch(`${API_BASE}/api/auth/me`, {
-        credentials: "include",
-      });
-
-      if (meRes.ok) {
-        const meData = await meRes.json().catch(() => ({}));
-        console.log("User logat:", meData?.user || "No user data");
+      const user = await dispatch(loadMe());
+      if (!user) {
+        setServerError(
+          "Autentificarea a reușit, dar nu s-au putut încărca datele contului.",
+        );
+        return;
       }
 
       setSuccessMessage(
         isRegister ? "Cont creat cu succes!" : "Autentificare reușită!",
       );
-      // TODO: redirectionare sau update UI dupa autentificare
+      navigate("/home", { replace: true });
     } catch (err) {
       setServerError("Nu s-a putut conecta la server. Încearcă din nou.");
     } finally {
@@ -226,7 +229,11 @@ export default function AuthForm({ initialMode = "login" }) {
               <p className="pass-fgt">Forgot password?</p>
               <hr />
               <p>Want to checkout without an account?</p>
-              <button type="button" className="guest">
+              <button
+                type="button"
+                className="guest"
+                onClick={() => navigate("/home", { replace: true })}
+              >
                 Continue as Guest
               </button>
             </div>

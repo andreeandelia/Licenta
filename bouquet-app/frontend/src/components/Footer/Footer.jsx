@@ -63,7 +63,9 @@ export default function Footer() {
             </div>
             <div className="footer-contactRow">
               <Mail size={16} aria-hidden="true" />
-              <span>hello@bloomery.ro</span>
+              <span>
+                <a href="mailto:hello@bloomery.ro">hello@bloomery.ro</a>
+              </span>
             </div>
             <div className="footer-contactRow">
               <MapPin size={16} aria-hidden="true" />

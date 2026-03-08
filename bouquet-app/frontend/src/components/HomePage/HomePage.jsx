@@ -1,4 +1,3 @@
-import "./HomePage.css";
 import HeroSection from "../HeroSection/HeroSection";
 import Navbar from "../Navbar/Navbar";
 import SaleCode from "../SaleCode/SaleCode";
@@ -9,9 +8,9 @@ import Footer from "../Footer/Footer";
 
 export default function HomePage() {
   return (
-    <>
+    <div className="page-shell">
       <Navbar />
-      <main>
+      <main className="page-main">
         <HeroSection />
         <SaleCode />
         <ShopByCategory />
@@ -19,6 +18,6 @@ export default function HomePage() {
         <CTASection />
       </main>
       <Footer />
-    </>
+    </div>
   );
 }
