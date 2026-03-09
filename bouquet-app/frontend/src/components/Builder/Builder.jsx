@@ -256,7 +256,7 @@ export default function BuilderPage() {
                 </div>
 
                 <div className="filters-title" style={{ marginTop: 14 }}>
-                  Price Range: ${minPrice} - ${maxPrice}
+                  Price Range: RON {minPrice} - RON {maxPrice}
                 </div>
 
                 {/* range (min/max) */}
@@ -316,7 +316,7 @@ export default function BuilderPage() {
                           <div className="card-name">{p.name}</div>
                           <div className="card-row">
                             <div className="card-price">
-                              ${Number(p.price).toFixed(2)}
+                              RON {Number(p.price).toFixed(2)}
                             </div>
                             <div className="card-stock">{p.stock} in stock</div>
                           </div>
@@ -370,13 +370,13 @@ export default function BuilderPage() {
                         <div>
                           <div className="summary-name">{item.name}</div>
                           <div className="summary-type">
-                            {item.type} ${item.unitPrice.toFixed(2)} x{" "}
+                            {item.type} RON {item.unitPrice.toFixed(2)} x{" "}
                             {item.qty}
                           </div>
                         </div>
 
                         <div className="summary-subtotal">
-                          ${item.subtotal.toFixed(2)}
+                          RON {item.subtotal.toFixed(2)}
                         </div>
                       </div>
                     ))}
@@ -384,7 +384,7 @@ export default function BuilderPage() {
 
                   <div className="summary-total">
                     <span>Total</span>
-                    <b>${total.toFixed(2)}</b>
+                    <b>RON {total.toFixed(2)}</b>
                   </div>
                 </>
               ) : (
@@ -437,7 +437,7 @@ export default function BuilderPage() {
                       </div>
                       <div className="row-right">
                         <div className="row-price">
-                          ${Number(bouquet.wrapping.price).toFixed(2)}
+                          RON {Number(bouquet.wrapping.price).toFixed(2)}
                         </div>
                       </div>
                     </div>
@@ -455,7 +455,7 @@ export default function BuilderPage() {
 
                   <div className="side-total">
                     <span>Total</span>
-                    <b>${total.toFixed(2)}</b>
+                    <b>RON {total.toFixed(2)}</b>
                   </div>
 
                   {user && (
@@ -516,7 +516,9 @@ function Row({ item, label, onMinus, onPlus }) {
             +
           </button>
         </div>
-        <div className="row-price">${(item.price * item.qty).toFixed(2)}</div>
+        <div className="row-price">
+          RON {(item.price * item.qty).toFixed(2)}
+        </div>
       </div>
     </div>
   );

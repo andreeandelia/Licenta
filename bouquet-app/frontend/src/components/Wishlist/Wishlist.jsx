@@ -142,7 +142,7 @@ export default function Wishlist() {
                 <div className="wishlist-card-meta">
                   <p>{countItems(entry.bouquet)} items</p>
                   <div className="wishlist-total">
-                    ${Number(entry.totalPrice || 0).toFixed(2)}
+                    RON {Number(entry.totalPrice || 0).toFixed(2)}
                   </div>
                 </div>
               </div>
@@ -181,7 +181,7 @@ export default function Wishlist() {
                       className="wishlist-line"
                     >
                       <span>{`${item.name} x ${Number(item.qty || 1)}`}</span>
-                      <span>${lineSubtotal(item)}</span>
+                      <span>RON {lineSubtotal(item)}</span>
                     </div>
                   ))}
 
@@ -189,7 +189,7 @@ export default function Wishlist() {
                   <div className="wishlist-line">
                     <span>{`${entry.bouquet.wrapping.name} x 1`}</span>
                     <span>
-                      ${lineSubtotal({ ...entry.bouquet.wrapping, qty: 1 })}
+                      RON {lineSubtotal({ ...entry.bouquet.wrapping, qty: 1 })}
                     </span>
                   </div>
                 )}
@@ -201,7 +201,7 @@ export default function Wishlist() {
                       className="wishlist-line"
                     >
                       <span>{`${item.name} x ${Number(item.qty || 1)}`}</span>
-                      <span>${lineSubtotal(item)}</span>
+                      <span>RON {lineSubtotal(item)}</span>
                     </div>
                   ))}
               </div>
