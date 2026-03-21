@@ -6,10 +6,22 @@ import AuthForm from "../AuthForm/AuthForm";
 import HomePage from "../HomePage/HomePage";
 import BuilderPage from "../BuilderPage/BuilderPage";
 import WishlistPage from "../WishlistPage/WishlistPage";
+import SettingsPage from "../SettingsPage/SettingsPage";
+import OrdersPage from "../OrdersPage/OrdersPage";
+import CartPage from "../CartPage/CartPage";
+import HelpInfoPage from "../HelpInfoPage/HelpInfoPage";
+import CheckoutPage from "../CheckoutPage/CheckoutPage";
+import PaymentSuccess from "../PaymentSuccess/PaymentSuccess";
+import PaymentFailure from "../PaymentFailure/PaymentFailure";
+import CODSuccess from "../CODSuccess/CODSuccess";
+import AdminLayout from "../Admin/AdminLayout";
+import AdminDashboard from "../Admin/AdminDashboard";
+import AdminPlaceholderPage from "../Admin/AdminPlaceholderPage";
 
 function App() {
   const dispatch = useDispatch();
   const { user, loading } = useSelector((state) => state.auth);
+  const isAdmin = user?.role === "ADMIN";
 
   useEffect(() => {
     dispatch(loadMe());
@@ -23,13 +35,18 @@ function App() {
     <Routes>
       <Route
         path="/"
-        element={<Navigate to={user ? "/home" : "/auth"} replace />}
+        element={
+          <Navigate
+            to={user ? (isAdmin ? "/admin/dashboard" : "/home") : "/auth"}
+            replace
+          />
+        }
       />
       <Route
         path="/auth"
         element={
           user ? (
-            <Navigate to="/home" replace />
+            <Navigate to={isAdmin ? "/admin/dashboard" : "/home"} replace />
           ) : (
             <AuthForm initialMode="login" />
           )
@@ -37,10 +54,68 @@ function App() {
       />
       <Route path="/home" element={<HomePage />} />
       <Route path="/builder" element={<BuilderPage />} />
+      <Route path="/cart" element={<CartPage />} />
+      <Route path="/checkout" element={<CheckoutPage />} />
+      <Route path="/payment-success" element={<PaymentSuccess />} />
+      <Route path="/payment-failure" element={<PaymentFailure />} />
+      <Route path="/cod-success" element={<CODSuccess />} />
+      <Route path="/help-info" element={<HelpInfoPage />} />
+      <Route
+        path="/orders"
+        element={user ? <OrdersPage /> : <Navigate to="/auth" replace />}
+      />
       <Route
         path="/wishlist"
         element={user ? <WishlistPage /> : <Navigate to="/auth" replace />}
       />
+      <Route
+        path="/settings"
+        element={user ? <SettingsPage /> : <Navigate to="/auth" replace />}
+      />
+      <Route
+        path="/admin"
+        element={
+          user ? (
+            isAdmin ? (
+              <AdminLayout />
+            ) : (
+              <Navigate to="/home" replace />
+            )
+          ) : (
+            <Navigate to="/auth" replace />
+          )
+        }
+      >
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<AdminDashboard />} />
+        <Route
+          path="products"
+          element={
+            <AdminPlaceholderPage
+              title="Products"
+              description="Manage your product list from this section."
+            />
+          }
+        />
+        <Route
+          path="orders"
+          element={
+            <AdminPlaceholderPage
+              title="Orders"
+              description="Review and update customer orders from this section."
+            />
+          }
+        />
+        <Route
+          path="promo-codes"
+          element={
+            <AdminPlaceholderPage
+              title="Promo Codes"
+              description="Create and manage promotional codes from this section."
+            />
+          }
+        />
+      </Route>
     </Routes>
   );
 }

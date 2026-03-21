@@ -74,7 +74,7 @@ async function listProducts(req, res, next) {
             page,
             pageSize,
             total,
-            totalPages: Math.ceil(total / pageSize)
+            totalPages: Math.max(1, Math.ceil(total / pageSize))
         });
     }
     catch (err) {

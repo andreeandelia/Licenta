@@ -22,6 +22,7 @@ model User {
   address      Address?
   orders       Order[]
   wishlist     WishlistItem[]
+  cartItems    CartItems[]
   role         Role           @relation(fields: [roleId], references: [id])
   roleId       String
 }
@@ -54,16 +55,34 @@ model Address {
 }
 
 model Order {
-  id            String      @id @default(uuid())
-  user          User        @relation(fields: [userId], references: [id])
-  userId        String
-  lines         LineOrder[]
-  totalPrice    Float
-  totalDiscount Float
-  deliveryTax   Float
-  finalPrice    Float
-  status        String
-  createdAt     DateTime    @default(now())
+  id                   String         @id @default(uuid())
+  user                 User?          @relation(fields: [userId], references: [id])
+  userId               String?
+  guestSessionId       String?
+  customerEmail        String?
+  customerName         String
+  customerPhone        String
+  deliveryStreet       String
+  deliveryCity         String
+  deliveryState        String
+  deliveryZipCode      String
+  deliveryDetails      String?
+  deliveryOption       DeliveryOption
+  scheduledFor         DateTime?
+  scheduledSlot        String?
+  paymentMethod        PaymentMethod
+  promoCode            String?
+  promoDiscountPercent Float?
+  lines                LineOrder[]
+  totalPrice           Float
+  totalDiscount        Float
+  deliveryTax          Float
+  finalPrice           Float
+  status               OrderStatus
+  createdAt            DateTime       @default(now())
+
+  @@index([guestSessionId])
+  @@index([customerEmail])
 }
 
 model LineOrder {
@@ -82,6 +101,24 @@ model Bouquet {
   price     Float
   items     ItemBouquet[] @relation("BouquetItems")
   lineOrder LineOrder[]
+  cartItems CartItems[]
+}
+
+model CartItems {
+  id        String   @id @default(uuid())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String?
+  sessionId String? // pentru utilizatorii neautentificati
+  bouquet   Bouquet  @relation(fields: [bouquetId], references: [id], onDelete: Cascade)
+  bouquetId String
+  quantity  Int      @default(1)
+  unitPrice Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, bouquetId])
+  @@unique([sessionId, bouquetId])
+  @@index([sessionId])
 }
 
 model ItemBouquet {
@@ -98,6 +135,24 @@ enum ProductType {
   FLOWER
   WRAPPING
   ACCESSORY
+}
+
+enum DeliveryOption {
+  STANDARD
+  SAME_DAY
+  EXPRESS
+}
+
+enum PaymentMethod {
+  COD
+  ONLINE
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  FAILED
+  CANCELLED
 }
 
 enum Color {
@@ -122,4 +177,13 @@ model Product {
   color        Color?
   imageUrl     String
   itemBouquets ItemBouquet[]
+}
+
+model PromoCode {
+  id              String   @id @default(uuid())
+  code            String   @unique
+  discountPercent Float
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }

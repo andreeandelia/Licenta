@@ -1,3 +1,25 @@
+function normalizeLineItems(list) {
+    if (!Array.isArray(list)) return [];
+
+    return list
+        .filter((item) => item && item.id != null)
+        .map((item) => ({
+            id: item.id,
+            name: item.name,
+            price: Number(item.price) || 0,
+            qty: Math.max(1, Number(item.qty) || 1),
+        }));
+}
+
+function normalizeWrapping(wrapping) {
+    if (!wrapping || wrapping.id == null) return null;
+
+    return {
+        id: wrapping.id,
+        name: wrapping.name,
+        price: Number(wrapping.price) || 0,
+    };
+}
 const initialState = {
     flowers: [],     // [{ id, name, price, qty }]
     wrapping: null,  // { id, name, price } sau null
@@ -59,6 +81,16 @@ export default function bouquetReducer(state = initialState, action) {
 
         case "BOUQUET_CLEAR":
             return initialState;
+
+        case "BOUQUET_SET": {
+            const payload = action.payload || {};
+
+            return {
+                flowers: normalizeLineItems(payload.flowers),
+                accessories: normalizeLineItems(payload.accessories),
+                wrapping: normalizeWrapping(payload.wrapping),
+            };
+        }
 
         default:
             return state;

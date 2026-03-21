@@ -14,16 +14,22 @@ export default function productReducer(state = initialState, action) {
             return { ...state, loading: true, error: null };
 
         case "PRODUCTS_SUCCESS":
-            return {
-                ...state,
-                loading: false,
-                error: null,
-                items: action.payload.items,
-                page: action.payload.page,
-                limit: action.payload.limit,
-                total: action.payload.total,
-                totalPages: action.payload.totalPages,
-            };
+            {
+                const nextPage = Math.max(1, Number(action.payload.page) || 1);
+                const nextLimit = Math.max(1, Number(action.payload.pageSize ?? action.payload.limit) || 6);
+                const nextTotalPages = Math.max(1, Number(action.payload.totalPages) || 1);
+
+                return {
+                    ...state,
+                    loading: false,
+                    error: null,
+                    items: action.payload.items,
+                    page: nextPage,
+                    limit: nextLimit,
+                    total: action.payload.total,
+                    totalPages: nextTotalPages,
+                };
+            }
 
         case "PRODUCTS_ERROR":
             return { ...state, loading: false, error: action.payload || "Error" };

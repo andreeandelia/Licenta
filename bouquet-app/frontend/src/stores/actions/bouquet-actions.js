@@ -16,3 +16,8 @@ export const changeQty = (id, productType, delta) => ({
 export const clearBouquet = () => ({
     type: "BOUQUET_CLEAR",
 });
+
+export const setBouquet = (bouquet) => ({
+    type: "BOUQUET_SET",
+    payload: bouquet,
+});

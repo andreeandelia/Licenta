@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Pencil, ShoppingCart, Trash2 } from "lucide-react";
+import { setBouquet } from "../../stores/actions/bouquet-actions";
+import { addBouquetToCart } from "../../stores/actions/cart-actions";
 import {
   clearWishlist,
   fetchWishlist,
@@ -43,11 +45,13 @@ function bouquetTitle(bouquet) {
 
 export default function Wishlist() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { items, loading, error, saving } = useSelector(
     (state) => state.wishlist,
   );
   const [editingId, setEditingId] = useState(null);
   const [draftTitle, setDraftTitle] = useState("");
+  const [addingCartId, setAddingCartId] = useState(null);
 
   useEffect(() => {
     dispatch(fetchWishlist());
@@ -69,6 +73,23 @@ export default function Wishlist() {
 
     const result = await dispatch(updateWishlistTitle(id, nextTitle));
     if (result?.ok) cancelEdit();
+  }
+
+  function openInBuilder(entry) {
+    dispatch(setBouquet(entry?.bouquet || {}));
+    navigate("/builder");
+  }
+
+  async function addEntryToCart(entry) {
+    setAddingCartId(entry.id);
+    const result = await dispatch(
+      addBouquetToCart({ bouquet: entry?.bouquet, quantity: 1 }),
+    );
+    setAddingCartId(null);
+
+    if (result?.ok) {
+      navigate("/cart");
+    }
   }
 
   return (
@@ -148,14 +169,28 @@ export default function Wishlist() {
               </div>
 
               <div className="wishlist-actions">
-                <Link to="/builder" className="wishlist-open-builder">
+                <Link
+                  to="/builder"
+                  className="wishlist-open-builder"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    openInBuilder(entry);
+                  }}
+                >
                   <span>Open in Builder</span>
                 </Link>
 
                 <div className="wishlist-cart-row">
-                  <button className="wishlist-add-cart" type="button">
+                  <button
+                    className="wishlist-add-cart"
+                    type="button"
+                    onClick={() => addEntryToCart(entry)}
+                    disabled={addingCartId === entry.id}
+                  >
                     <ShoppingCart size={16} />
-                    <span>Add to Cart</span>
+                    <span>
+                      {addingCartId === entry.id ? "Adding..." : "Add to Cart"}
+                    </span>
                   </button>
 
                   <button

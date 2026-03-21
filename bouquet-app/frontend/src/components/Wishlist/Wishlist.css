@@ -224,6 +224,11 @@
   background: #f9fafb;
 }
 
+.wishlist-add-cart:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .wishlist-delete-icon {
   width: 39px;
   height: 39px;

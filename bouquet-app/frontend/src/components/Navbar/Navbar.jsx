@@ -1,13 +1,16 @@
 import "./Navbar.css";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { ShoppingCart, User } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../../stores/actions/auth-actions";
+import { fetchCart } from "../../stores/actions/cart-actions";
 
-export default function Navbar({ cartCount = 0 }) {
+export default function Navbar() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const user = useSelector((state) => state.auth?.user);
+  const cartCount = useSelector((state) => Number(state.cart?.count || 0));
 
   const [open, setOpen] = useState(false);
   const menuRef = useRef(null);
@@ -31,9 +34,14 @@ export default function Navbar({ cartCount = 0 }) {
     };
   }, []);
 
+  useEffect(() => {
+    dispatch(fetchCart());
+  }, [dispatch]);
+
   async function handleLogout() {
     setOpen(false);
-    dispatch(logout());
+    await dispatch(logout());
+    navigate("/auth", { replace: true });
   }
 
   return (

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Heart } from "lucide-react";
 import { fetchProducts } from "../../stores/actions/product-actions";
 import { addWishlistItem } from "../../stores/actions/wishlist-actions";
+import { addBouquetToCart } from "../../stores/actions/cart-actions";
 import {
   addToBouquet,
   changeQty,
@@ -76,6 +77,8 @@ export default function BuilderPage() {
 
   const [step, setStep] = useState(1);
   const [wishlistMsg, setWishlistMsg] = useState("");
+  const [cartMsg, setCartMsg] = useState("");
+  const [addingToCart, setAddingToCart] = useState(false);
 
   // filters
   const [selectedColors, setSelectedColors] = useState([]);
@@ -84,6 +87,8 @@ export default function BuilderPage() {
   const [inStock, setInStock] = useState(false);
 
   const current = STEPS.find((x) => x.id === step);
+  const safeTotalPages = Math.max(1, Number(totalPages) || 1);
+  const safePage = Math.max(1, Number(page) || 1);
 
   // load products when step/filters/page change
   useEffect(() => {
@@ -198,11 +203,38 @@ export default function BuilderPage() {
     const result = await dispatch(addWishlistItem(bouquet));
     if (result?.ok) {
       setWishlistMsg("Saved to wishlist.");
+      dispatch(clearBouquet());
       navigate("/wishlist");
       return;
     }
 
     setWishlistMsg(result?.error || "Could not save wishlist item.");
+  }
+
+  async function onAddToCart() {
+    const hasAnyItems =
+      bouquet.flowers.length > 0 ||
+      bouquet.accessories.length > 0 ||
+      Boolean(bouquet.wrapping);
+
+    if (!hasAnyItems) {
+      setCartMsg("Add products before adding to cart.");
+      return;
+    }
+
+    setAddingToCart(true);
+    setCartMsg("");
+
+    const result = await dispatch(addBouquetToCart({ bouquet }));
+    setAddingToCart(false);
+
+    if (result?.ok) {
+      dispatch(clearBouquet());
+      navigate("/cart");
+      return;
+    }
+
+    setCartMsg(result?.error || "Could not add bouquet to cart.");
   }
 
   return (
@@ -303,37 +335,45 @@ export default function BuilderPage() {
                   <div className="state error">{error}</div>
                 )}
 
-                {!loading && !error && (
-                  <div className="grid">
-                    {items.map((p) => (
-                      <div key={p.id} className="card">
-                        <img
-                          className="card-img"
-                          src={resolveImageSrc(p.imageUrl)}
-                          alt={p.name}
-                        />
-                        <div className="card-body">
-                          <div className="card-name">{p.name}</div>
-                          <div className="card-row">
-                            <div className="card-price">
-                              RON {Number(p.price).toFixed(2)}
+                {!loading &&
+                  !error &&
+                  (items.length === 0 ? (
+                    <div className="state">
+                      No products found for current filters.
+                    </div>
+                  ) : (
+                    <div className="grid">
+                      {items.map((p) => (
+                        <div key={p.id} className="card">
+                          <img
+                            className="card-img"
+                            src={resolveImageSrc(p.imageUrl)}
+                            alt={p.name}
+                          />
+                          <div className="card-body">
+                            <div className="card-name">{p.name}</div>
+                            <div className="card-row">
+                              <div className="card-price">
+                                RON {Number(p.price).toFixed(2)}
+                              </div>
+                              <div className="card-stock">
+                                {p.stock} in stock
+                              </div>
                             </div>
-                            <div className="card-stock">{p.stock} in stock</div>
-                          </div>
 
-                          <button
-                            className="add-btn"
-                            type="button"
-                            disabled={p.stock <= 0}
-                            onClick={() => onAdd(p)}
-                          >
-                            + Add
-                          </button>
+                            <button
+                              className="add-btn"
+                              type="button"
+                              disabled={p.stock <= 0}
+                              onClick={() => onAdd(p)}
+                            >
+                              + Add
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  ))}
 
                 <div className="pager">
                   <button
@@ -345,7 +385,9 @@ export default function BuilderPage() {
                   </button>
 
                   <div className="pager-mid">
-                    {current?.type ? `Page ${page} / ${totalPages}` : null}
+                    {current?.type
+                      ? `Page ${safePage} / ${safeTotalPages}`
+                      : null}
                   </div>
 
                   <button
@@ -399,10 +441,17 @@ export default function BuilderPage() {
                 >
                   ‹ Previous
                 </button>
-                <Link to="/cart" className="pager-btn summary-add-btn">
-                  Add to Cart
-                </Link>
+                <button
+                  className="pager-btn summary-add-btn"
+                  type="button"
+                  onClick={onAddToCart}
+                  disabled={addingToCart}
+                >
+                  {addingToCart ? "Adding..." : "Add to Cart"}
+                </button>
               </div>
+
+              {cartMsg && <div className="builder-error-msg">{cartMsg}</div>}
             </div>
           )}
         </div>

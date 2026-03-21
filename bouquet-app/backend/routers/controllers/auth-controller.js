@@ -5,6 +5,31 @@ import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient();
 const DEFAULT_ROLE_NAME = 'USER';
 
+function formatAddressForResponse(address) {
+    const clean = (value) => {
+        const v = String(value || '').trim();
+        return v === '-' ? '' : v;
+    };
+
+    if (!address) {
+        return {
+            street: '',
+            city: '',
+            state: '',
+            zipCode: '',
+            details: '',
+        };
+    }
+
+    return {
+        street: clean(address.street),
+        city: clean(address.city),
+        state: clean(address.state),
+        zipCode: clean(address.zipCode),
+        details: clean(address.details),
+    };
+}
+
 function setAuthCookie(res, userId) {
     if (!process.env.JWT_SECRET) {
         throw new Error('JWT_SECRET is not configured');
@@ -16,6 +41,22 @@ function setAuthCookie(res, userId) {
         httpOnly: true,
         sameSite: 'lax',
         secure: false,
+    });
+}
+
+async function migrateGuestOrdersToUser(userId, email) {
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    if (!userId || !normalizedEmail) return;
+
+    await prisma.order.updateMany({
+        where: {
+            customerEmail: normalizedEmail,
+            userId: null,
+        },
+        data: {
+            userId,
+            guestSessionId: null,
+        }
     });
 }
 
@@ -46,6 +87,8 @@ async function register(req, res, next) {
                 roleId: userRole.id,
             }
         });
+
+        await migrateGuestOrdersToUser(user.id, email);
 
         setAuthCookie(res, user.id);
         return res.status(201).json({ user: { id: user.id, name: user.name, email: user.email } });
@@ -80,6 +123,8 @@ async function login(req, res, next) {
         const passwordMatch = await bcrypt.compare(password, user.passwordHash);
         if (!passwordMatch) return res.status(401).json({ error: "Invalid password" });
 
+        await migrateGuestOrdersToUser(user.id, email);
+
         setAuthCookie(res, user.id);
 
         return res.status(200).json({
@@ -102,13 +147,105 @@ async function me(req, res, next) {
             select: {
                 id: true,
                 name: true,
-                email: true
+                email: true,
+                role: {
+                    select: {
+                        name: true,
+                    },
+                },
+                phone: true,
+                address: {
+                    select: {
+                        street: true,
+                        city: true,
+                        state: true,
+                        zipCode: true,
+                        details: true,
+                    },
+                },
+                _count: {
+                    select: {
+                        orders: true,
+                        wishlist: true,
+                    },
+                },
             }
         });
 
         if (!user) return res.status(404).json({ error: "User not found" });
 
-        return res.json({ user });
+        return res.json({
+            user: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                role: user.role?.name || null,
+                phone: user.phone || '',
+                address: formatAddressForResponse(user.address),
+                stats: {
+                    orders: user._count.orders,
+                    wishlist: user._count.wishlist,
+                },
+            }
+        });
+    }
+    catch (err) {
+        next(err);
+    }
+}
+
+async function updateProfile(req, res, next) {
+    try {
+        const phone = String(req.body?.phone || '').trim();
+        const addressInput = req.body?.address;
+        const isAddressObject = addressInput && typeof addressInput === 'object';
+        const legacyAddressText = !isAddressObject ? String(addressInput || '').trim() : '';
+
+        const street = isAddressObject ? String(addressInput.street || '').trim() : legacyAddressText;
+        const city = isAddressObject ? String(addressInput.city || '').trim() : '';
+        const state = isAddressObject ? String(addressInput.state || '').trim() : '';
+        const zipCode = isAddressObject ? String(addressInput.zipCode || '').trim() : '';
+        const details = isAddressObject ? String(addressInput.details || '').trim() : legacyAddressText;
+
+        const hasAddressData = [street, city, state, zipCode, details].some((part) => part.length > 0);
+
+        if (phone.length > 30) {
+            return res.status(400).json({ error: 'Phone number must have at most 30 characters' });
+        }
+
+        await prisma.user.update({
+            where: { id: req.userId },
+            data: {
+                phone: phone || null,
+            },
+        });
+
+        if (hasAddressData) {
+            await prisma.address.upsert({
+                where: { userId: req.userId },
+                update: {
+                    street,
+                    city,
+                    state,
+                    zipCode,
+                    details: details || null,
+                },
+                create: {
+                    userId: req.userId,
+                    street,
+                    city,
+                    state,
+                    zipCode,
+                    details: details || null,
+                },
+            });
+        } else {
+            await prisma.address.deleteMany({
+                where: { userId: req.userId },
+            });
+        }
+
+        return me(req, res, next);
     }
     catch (err) {
         next(err);
@@ -125,4 +262,4 @@ function logout(req, res) {
     return res.json({ ok: true });
 }
 
-export { register, login, me, logout };
+export { register, login, me, updateProfile, logout };

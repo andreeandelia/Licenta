@@ -103,7 +103,9 @@ export default function AuthForm({ initialMode = "login" }) {
       setSuccessMessage(
         isRegister ? "Cont creat cu succes!" : "Autentificare reușită!",
       );
-      navigate("/home", { replace: true });
+      navigate(user?.role === "ADMIN" ? "/admin/dashboard" : "/home", {
+        replace: true,
+      });
     } catch (err) {
       setServerError("Nu s-a putut conecta la server. Încearcă din nou.");
     } finally {

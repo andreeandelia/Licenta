@@ -4,10 +4,11 @@ import authReducer from './reducers/auth-reducer';
 import productReducer from './reducers/product-reducer';
 import bouquetReducer from './reducers/bouquet-reducer';
 import wishlistReducer from './reducers/wishlist-reducer';
+import cartReducer from './reducers/cart-reducer';
 
 const rootReducer = combineReducers({
     auth: authReducer,
-    // cart: cartReducer,
+    cart: cartReducer,
     products: productReducer,
     bouquet: bouquetReducer,
     wishlist: wishlistReducer,

@@ -39,16 +39,19 @@ export default function Footer() {
           <div className="column-title">Help &amp; Info</div>
           <ul className="footer-list">
             <li>
-              <Link to="/delivery">Delivery Information</Link>
+              <Link to="/help-info#delivery">Delivery Information</Link>
             </li>
             <li>
-              <Link to="/faq">FAQ</Link>
+              <Link to="/help-info#faq">FAQ</Link>
             </li>
             <li>
-              <Link to="/care">Care Instructions</Link>
+              <Link to="/help-info#care">Care Instructions</Link>
             </li>
             <li>
-              <Link to="/returns">Returns &amp; Refunds</Link>
+              <Link to="/help-info#returns">Returns &amp; Refunds</Link>
+            </li>
+            <li>
+              <Link to="/help-info#terms">Terms &amp; Conditions</Link>
             </li>
           </ul>
         </div>
