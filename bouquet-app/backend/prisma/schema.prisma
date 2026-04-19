@@ -14,20 +14,22 @@ datasource db {
 }
 
 model User {
-  id                String         @id @default(uuid())
-  email             String         @unique
-  passwordHash      String
-  name              String
-  isVerified        Boolean        @default(false)
-  verificationToken String?        @unique
-  tokenExpiresAt    DateTime?
-  phone             String?
-  address           Address?
-  orders            Order[]
-  wishlist          WishlistItem[]
-  cartItems         CartItems[]
-  role              Role           @relation(fields: [roleId], references: [id])
-  roleId            String
+  id                     String         @id @default(uuid())
+  email                  String         @unique
+  passwordHash           String
+  name                   String
+  isVerified             Boolean        @default(false)
+  verificationToken      String?        @unique
+  tokenExpiresAt         DateTime?
+  resetPasswordToken     String?
+  resetPasswordExpiresAt DateTime?
+  phone                  String?
+  address                Address?
+  orders                 Order[]
+  wishlist               WishlistItem[]
+  cartItems              CartItems[]
+  role                   Role           @relation(fields: [roleId], references: [id])
+  roleId                 String
 }
 
 model WishlistItem {

@@ -227,7 +227,20 @@ export default function AuthForm({ initialMode = "login" }) {
 
           {!isRegister && (
             <div className="auth-footer">
-              <p className="pass-fgt">Forgot password?</p>
+              <p
+                className="pass-fgt"
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate("/forgot-password")}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    navigate("/forgot-password");
+                  }
+                }}
+              >
+                Forgot password?
+              </p>
               <hr />
               <p>Want to checkout without an account?</p>
               <button

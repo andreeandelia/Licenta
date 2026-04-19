@@ -16,6 +16,8 @@ import PaymentFailure from "../PaymentFailure/PaymentFailure";
 import CODSuccess from "../CODSuccess/CODSuccess";
 import EmailVerificationSuccess from "../EmailVerificationSuccess/EmailVerificationSuccess";
 import EmailVerificationFailure from "../EmailVerificationFailure/EmailVerificationFailure";
+import ForgotPassword from "../ForgotPassword/ForgotPassword";
+import ResetPassword from "../ResetPassword/ResetPassword";
 import AdminLayout from "../Admin/AdminLayout";
 import AdminDashboard from "../Admin/AdminDashboard";
 import AdminProducts from "../Admin/AdminProducts";
@@ -56,6 +58,8 @@ function App() {
           )
         }
       />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/home" element={<HomePage />} />
       <Route path="/builder" element={<BuilderPage />} />
       <Route path="/cart" element={<CartPage />} />

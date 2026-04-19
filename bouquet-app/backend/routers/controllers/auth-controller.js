@@ -2,7 +2,7 @@ import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
 import { PrismaClient } from '@prisma/client'
-import { sendVerificationEmail } from '../../utils/emailService.js'
+import { sendVerificationEmail, sendPasswordResetEmail } from '../../utils/emailService.js'
 
 const prisma = new PrismaClient();
 const DEFAULT_ROLE_NAME = 'USER';
@@ -156,6 +156,105 @@ async function login(req, res, next) {
                 email: user.email
             }
         })
+    }
+    catch (err) {
+        next(err);
+    }
+}
+
+function hashResetToken(rawToken) {
+    return crypto.createHash('sha256').update(rawToken).digest('hex');
+}
+
+async function forgotPassword(req, res, next) {
+    try {
+        const email = String(req.body?.email || '').trim().toLowerCase();
+
+        if (!email.includes('@')) {
+            return res.status(400).json({ error: 'Invalid email address' });
+        }
+
+        const user = await prisma.user.findUnique({
+            where: { email },
+            select: {
+                id: true,
+                email: true,
+                name: true,
+            },
+        });
+
+        // Return a generic response to prevent user enumeration.
+        const genericMessage = {
+            message: 'If an account with this email exists, a reset link has been sent.',
+        };
+
+        if (!user) {
+            return res.status(200).json(genericMessage);
+        }
+
+        // randomBytes gives high-entropy reset tokens suitable for credential recovery.
+        const rawToken = crypto.randomBytes(32).toString('hex');
+        const hashedToken = hashResetToken(rawToken);
+        const resetPasswordExpiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                resetPasswordToken: hashedToken,
+                resetPasswordExpiresAt,
+            },
+        });
+
+        await sendPasswordResetEmail(user.email, rawToken, user.name);
+
+        return res.status(200).json(genericMessage);
+    }
+    catch (err) {
+        next(err);
+    }
+}
+
+async function resetPassword(req, res, next) {
+    try {
+        const token = String(req.body?.token || '').trim();
+        const password = String(req.body?.password || '');
+
+        if (!token) {
+            return res.status(400).json({ error: 'Reset token is required' });
+        }
+
+        if (password.length < 8) {
+            return res.status(400).json({ error: 'Password must be at least 8 characters long' });
+        }
+
+        const hashedToken = hashResetToken(token);
+
+        const user = await prisma.user.findFirst({
+            where: {
+                resetPasswordToken: hashedToken,
+                resetPasswordExpiresAt: {
+                    gt: new Date(),
+                },
+            },
+            select: {
+                id: true,
+            },
+        });
+
+        if (!user) {
+            return res.status(400).json({ error: 'Invalid or expired reset token' });
+        }
+
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                passwordHash: await bcrypt.hash(password, 10),
+                resetPasswordToken: null,
+                resetPasswordExpiresAt: null,
+            },
+        });
+
+        return res.status(200).json({ message: 'Password reset successful. You can now log in.' });
     }
     catch (err) {
         next(err);
@@ -325,4 +424,4 @@ function logout(req, res) {
     return res.json({ ok: true });
 }
 
-export { register, verify, login, me, updateProfile, logout };
+export { register, verify, login, forgotPassword, resetPassword, me, updateProfile, logout };
