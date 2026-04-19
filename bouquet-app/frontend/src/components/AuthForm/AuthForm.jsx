@@ -1,9 +1,41 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { loadMe } from "../../stores/actions/auth-actions";
 import { apiUrl } from "../../config/global";
 import "./AuthForm.css";
+
+const GOOGLE_GSI_SCRIPT = "https://accounts.google.com/gsi/client";
+
+function ensureGoogleScriptLoaded() {
+  return new Promise((resolve, reject) => {
+    if (window.google?.accounts?.id) {
+      resolve();
+      return;
+    }
+
+    const existing = document.querySelector("script[data-google-gsi='1']");
+    if (existing) {
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener(
+        "error",
+        () => reject(new Error("Could not load Google Sign-In script.")),
+        { once: true },
+      );
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = GOOGLE_GSI_SCRIPT;
+    script.async = true;
+    script.defer = true;
+    script.dataset.googleGsi = "1";
+    script.onload = () => resolve();
+    script.onerror = () =>
+      reject(new Error("Could not load Google Sign-In script."));
+    document.head.appendChild(script);
+  });
+}
 
 export default function AuthForm({ initialMode = "login" }) {
   const dispatch = useDispatch();
@@ -18,9 +50,111 @@ export default function AuthForm({ initialMode = "login" }) {
   const [fieldErrors, setFieldErrors] = useState({});
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const googleButtonRef = useRef(null);
+  const googleClientId = String(
+    import.meta.env.VITE_GOOGLE_CLIENT_ID || "",
+  ).trim();
 
   const isRegister = mode === "register";
+
+  const handleGoogleCredential = useCallback(
+    async (response) => {
+      const credential = String(response?.credential || "").trim();
+      if (!credential) {
+        setServerError("Google authentication failed. Missing credential.");
+        return;
+      }
+
+      resetMessages();
+      setGoogleLoading(true);
+
+      try {
+        const res = await fetch(apiUrl("/api/auth/google"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ credential }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          setServerError(data?.error || "Google sign-in failed.");
+          return;
+        }
+
+        const user = await dispatch(loadMe());
+        if (!user) {
+          setServerError(
+            "Google authentication succeeded, but user data could not be loaded.",
+          );
+          return;
+        }
+
+        setSuccessMessage("Google authentication succeeded!");
+        navigate(user?.role === "ADMIN" ? "/admin/dashboard" : "/home", {
+          replace: true,
+        });
+      } catch {
+        setServerError("Nu s-a putut conecta la server. Încearcă din nou.");
+      } finally {
+        setGoogleLoading(false);
+      }
+    },
+    [dispatch, navigate],
+  );
+
+  useEffect(() => {
+    if (isRegister) return;
+
+    if (!googleClientId) {
+      setServerError(
+        "Google sign-in is unavailable: missing VITE_GOOGLE_CLIENT_ID.",
+      );
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        await ensureGoogleScriptLoaded();
+        if (
+          cancelled ||
+          !googleButtonRef.current ||
+          !window.google?.accounts?.id
+        )
+          return;
+
+        window.google.accounts.id.initialize({
+          client_id: googleClientId,
+          callback: handleGoogleCredential,
+        });
+
+        googleButtonRef.current.innerHTML = "";
+
+        window.google.accounts.id.renderButton(googleButtonRef.current, {
+          theme: "outline",
+          size: "large",
+          text: "continue_with",
+          shape: "pill",
+          width: 360,
+        });
+      } catch (err) {
+        if (!cancelled) {
+          setServerError(
+            err?.message || "Google sign-in is currently unavailable.",
+          );
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [googleClientId, handleGoogleCredential, isRegister]);
 
   function resetMessages() {
     setServerError("");
@@ -221,9 +355,25 @@ export default function AuthForm({ initialMode = "login" }) {
           {serverError && <div className="server-error">{serverError}</div>}
           {successMessage && <div className="success">{successMessage}</div>}
 
-          <button className="submit" type="submit" disabled={loading}>
+          <button
+            className="submit"
+            type="submit"
+            disabled={loading || googleLoading}
+          >
             {buttonLabel}
           </button>
+
+          {!isRegister && (
+            <>
+              <div className="auth-divider">
+                <span>or continue with</span>
+              </div>
+              <div
+                className={`google-login-slot ${googleLoading ? "is-loading" : ""}`}
+                ref={googleButtonRef}
+              />
+            </>
+          )}
 
           {!isRegister && (
             <div className="auth-footer">

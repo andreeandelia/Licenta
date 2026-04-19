@@ -2,10 +2,38 @@ import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
 import { PrismaClient } from '@prisma/client'
+import { OAuth2Client } from 'google-auth-library'
+import dotenv from 'dotenv'
+import path from 'path'
+import { fileURLToPath } from 'url'
 import { sendVerificationEmail, sendPasswordResetEmail } from '../../utils/emailService.js'
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const prisma = new PrismaClient();
 const DEFAULT_ROLE_NAME = 'USER';
+
+function getGoogleClient() {
+    const googleClientId = String(process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || '').trim();
+    if (!googleClientId) {
+        throw new Error('GOOGLE_CLIENT_ID is not configured');
+    }
+
+    return {
+        clientId: googleClientId,
+        client: new OAuth2Client(googleClientId),
+    };
+}
+
+async function ensureDefaultUserRole() {
+    return prisma.role.upsert({
+        where: { name: DEFAULT_ROLE_NAME },
+        update: {},
+        create: { name: DEFAULT_ROLE_NAME },
+    });
+}
 
 function getFrontendVerificationRedirectUrl(status) {
     const frontendBaseUrl = String(process.env.FRONTEND_BASE_URL || 'http://localhost:5173').replace(/\/$/, '');
@@ -81,11 +109,7 @@ async function register(req, res, next) {
         const existingUser = await prisma.user.findUnique({ where: { email: email } });
         if (existingUser) return res.status(409).json({ error: "Email already in use" });
 
-        const userRole = await prisma.role.upsert({
-            where: { name: DEFAULT_ROLE_NAME },
-            update: {},
-            create: { name: DEFAULT_ROLE_NAME },
-        });
+        const userRole = await ensureDefaultUserRole();
 
         // randomBytes uses a cryptographically secure PRNG suitable for security tokens.
         const verificationToken = crypto.randomBytes(32).toString('hex');
@@ -138,6 +162,10 @@ async function login(req, res, next) {
 
         if (!user) return res.status(401).json({ error: "Invalid email" });
 
+        if (!user.passwordHash) {
+            return res.status(400).json({ error: 'This account uses Google sign-in. Please continue with Google.' });
+        }
+
         const passwordMatch = await bcrypt.compare(password, user.passwordHash);
         if (!passwordMatch) return res.status(401).json({ error: "Invalid password" });
 
@@ -156,6 +184,108 @@ async function login(req, res, next) {
                 email: user.email
             }
         })
+    }
+    catch (err) {
+        next(err);
+    }
+}
+
+async function loginWithGoogle(req, res, next) {
+    try {
+        const credential = String(req.body?.credential || '').trim();
+
+        if (!credential) {
+            return res.status(400).json({ error: 'Google credential is required' });
+        }
+
+        const { clientId, client } = getGoogleClient();
+        const ticket = await client.verifyIdToken({
+            idToken: credential,
+            audience: clientId,
+        });
+
+        const payload = ticket.getPayload();
+        const googleSub = String(payload?.sub || '').trim();
+        const email = String(payload?.email || '').trim().toLowerCase();
+        const emailVerified = Boolean(payload?.email_verified);
+        const nameFromGoogle = String(payload?.name || '').trim();
+
+        if (!googleSub) {
+            return res.status(400).json({ error: 'Invalid Google token payload (missing subject)' });
+        }
+
+        if (!email || !email.includes('@')) {
+            return res.status(400).json({ error: 'Invalid Google account email' });
+        }
+
+        if (!emailVerified) {
+            return res.status(403).json({ error: 'Google account email is not verified' });
+        }
+
+        const userRole = await ensureDefaultUserRole();
+
+        let user = await prisma.user.findUnique({
+            where: { googleSub },
+            select: {
+                id: true,
+                email: true,
+                name: true,
+            },
+        });
+
+        if (!user) {
+            const existingByEmail = await prisma.user.findUnique({
+                where: { email },
+                select: {
+                    id: true,
+                    email: true,
+                    name: true,
+                },
+            });
+
+            if (existingByEmail) {
+                user = await prisma.user.update({
+                    where: { id: existingByEmail.id },
+                    data: {
+                        googleSub,
+                        isVerified: true,
+                        name: existingByEmail.name || nameFromGoogle || 'Bloomery Customer',
+                    },
+                    select: {
+                        id: true,
+                        email: true,
+                        name: true,
+                    },
+                });
+            } else {
+                user = await prisma.user.create({
+                    data: {
+                        email,
+                        name: nameFromGoogle || email.split('@')[0] || 'Bloomery Customer',
+                        googleSub,
+                        isVerified: true,
+                        roleId: userRole.id,
+                    },
+                    select: {
+                        id: true,
+                        email: true,
+                        name: true,
+                    },
+                });
+            }
+        }
+
+        await migrateGuestOrdersToUser(user.id, user.email);
+
+        setAuthCookie(res, user.id);
+
+        return res.status(200).json({
+            user: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+            },
+        });
     }
     catch (err) {
         next(err);
@@ -424,4 +554,4 @@ function logout(req, res) {
     return res.json({ ok: true });
 }
 
-export { register, verify, login, forgotPassword, resetPassword, me, updateProfile, logout };
+export { register, verify, login, loginWithGoogle, forgotPassword, resetPassword, me, updateProfile, logout };

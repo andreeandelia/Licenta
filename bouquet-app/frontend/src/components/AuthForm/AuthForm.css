@@ -161,6 +161,34 @@
   background: linear-gradient(90deg, #e50079 0%, #c237be 50%, #9b16f7 100%);
 }
 
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.google-login-slot {
+  margin-top: 12px;
+  min-height: 40px;
+  display: grid;
+  place-items: center;
+}
+
+.google-login-slot.is-loading {
+  opacity: 0.7;
+}
+
 /* Footer */
 
 .auth-footer {
