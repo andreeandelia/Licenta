@@ -14,6 +14,8 @@ import CheckoutPage from "../CheckoutPage/CheckoutPage";
 import PaymentSuccess from "../PaymentSuccess/PaymentSuccess";
 import PaymentFailure from "../PaymentFailure/PaymentFailure";
 import CODSuccess from "../CODSuccess/CODSuccess";
+import EmailVerificationSuccess from "../EmailVerificationSuccess/EmailVerificationSuccess";
+import EmailVerificationFailure from "../EmailVerificationFailure/EmailVerificationFailure";
 import AdminLayout from "../Admin/AdminLayout";
 import AdminDashboard from "../Admin/AdminDashboard";
 import AdminProducts from "../Admin/AdminProducts";
@@ -61,6 +63,14 @@ function App() {
       <Route path="/payment-success" element={<PaymentSuccess />} />
       <Route path="/payment-failure" element={<PaymentFailure />} />
       <Route path="/cod-success" element={<CODSuccess />} />
+      <Route
+        path="/email-verification-success"
+        element={<EmailVerificationSuccess />}
+      />
+      <Route
+        path="/email-verification-failure"
+        element={<EmailVerificationFailure />}
+      />
       <Route path="/help-info" element={<HelpInfoPage />} />
       <Route
         path="/orders"

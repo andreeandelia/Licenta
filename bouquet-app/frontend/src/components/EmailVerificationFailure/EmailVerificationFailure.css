@@ -1,0 +1,65 @@
+.email-verify-failure-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #fff8fc 0%, #f7e8f1 100%);
+  padding: 20px;
+}
+
+.email-verify-failure-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 40px;
+  text-align: center;
+  max-width: 540px;
+  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.15);
+  animation: emailVerifySlideUp 0.4s ease-out;
+}
+
+@keyframes emailVerifySlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.email-verify-failure-icon {
+  width: 96px;
+  height: 96px;
+  margin: 0 auto 20px;
+  background: #fef2f2;
+  border: 2px solid #dc2626;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 48px;
+  color: #dc2626;
+  font-weight: 300;
+}
+
+.email-verify-failure-card h1 {
+  font-size: 28px;
+  color: #111827;
+  margin: 16px 0 10px;
+  font-weight: 600;
+}
+
+.email-verify-failure-message {
+  font-size: 14px;
+  color: #64748b;
+  margin-bottom: 10px;
+  line-height: 1.6;
+}
+
+.email-verify-failure-details {
+  font-size: 13px;
+  color: #94a3b8;
+  margin-bottom: 0;
+}

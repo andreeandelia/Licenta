@@ -1,9 +1,17 @@
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
+import crypto from 'crypto'
 import { PrismaClient } from '@prisma/client'
+import { sendVerificationEmail } from '../../utils/emailService.js'
 
 const prisma = new PrismaClient();
 const DEFAULT_ROLE_NAME = 'USER';
+
+function getFrontendVerificationRedirectUrl(status) {
+    const frontendBaseUrl = String(process.env.FRONTEND_BASE_URL || 'http://localhost:5173').replace(/\/$/, '');
+    const path = status === 'success' ? '/email-verification-success' : '/email-verification-failure';
+    return `${frontendBaseUrl}${path}`;
+}
 
 function formatAddressForResponse(address) {
     const clean = (value) => {
@@ -79,19 +87,28 @@ async function register(req, res, next) {
             create: { name: DEFAULT_ROLE_NAME },
         });
 
+        // randomBytes uses a cryptographically secure PRNG suitable for security tokens.
+        const verificationToken = crypto.randomBytes(32).toString('hex');
+        // Keep token short-lived to reduce replay risk if a link leaks.
+        const tokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
         const user = await prisma.user.create({
             data: {
                 name: name,
                 email: email,
                 passwordHash: await bcrypt.hash(password, 10),
                 roleId: userRole.id,
+                verificationToken,
+                tokenExpiresAt,
             }
         });
 
-        await migrateGuestOrdersToUser(user.id, email);
+        await sendVerificationEmail(user.email, verificationToken, user.name);
 
-        setAuthCookie(res, user.id);
-        return res.status(201).json({ user: { id: user.id, name: user.name, email: user.email } });
+        return res.status(201).json({
+            message: 'Registration successful. Please verify your email address within 24 hours.',
+            user: { id: user.id, name: user.name, email: user.email, isVerified: user.isVerified }
+        });
     }
     catch (err) {
         next(err);
@@ -114,6 +131,7 @@ async function login(req, res, next) {
                 id: true,
                 name: true,
                 email: true,
+                isVerified: true,
                 passwordHash: true
             }
         });
@@ -122,6 +140,10 @@ async function login(req, res, next) {
 
         const passwordMatch = await bcrypt.compare(password, user.passwordHash);
         if (!passwordMatch) return res.status(401).json({ error: "Invalid password" });
+
+        if (!user.isVerified) {
+            return res.status(403).json({ error: 'Email is not verified. Please check your inbox.' });
+        }
 
         await migrateGuestOrdersToUser(user.id, email);
 
@@ -134,6 +156,47 @@ async function login(req, res, next) {
                 email: user.email
             }
         })
+    }
+    catch (err) {
+        next(err);
+    }
+}
+
+async function verify(req, res, next) {
+    try {
+        const token = String(req.query.token || '').trim();
+
+        if (!token) {
+            return res.redirect(getFrontendVerificationRedirectUrl('failure'));
+        }
+
+        const user = await prisma.user.findFirst({
+            where: {
+                verificationToken: token,
+                tokenExpiresAt: {
+                    gt: new Date(),
+                },
+            },
+            select: {
+                id: true,
+                email: true,
+            },
+        });
+
+        if (!user) {
+            return res.redirect(getFrontendVerificationRedirectUrl('failure'));
+        }
+
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                isVerified: true,
+                verificationToken: null,
+                tokenExpiresAt: null,
+            },
+        });
+
+        return res.redirect(getFrontendVerificationRedirectUrl('success'));
     }
     catch (err) {
         next(err);
@@ -262,4 +325,4 @@ function logout(req, res) {
     return res.json({ ok: true });
 }
 
-export { register, login, me, updateProfile, logout };
+export { register, verify, login, me, updateProfile, logout };
