@@ -16,7 +16,9 @@ import PaymentFailure from "../PaymentFailure/PaymentFailure";
 import CODSuccess from "../CODSuccess/CODSuccess";
 import AdminLayout from "../Admin/AdminLayout";
 import AdminDashboard from "../Admin/AdminDashboard";
-import AdminPlaceholderPage from "../Admin/AdminPlaceholderPage";
+import AdminProducts from "../Admin/AdminProducts";
+import AdminOrders from "../Admin/AdminOrders";
+import AdminPromoCodes from "../Admin/AdminPromoCodes";
 
 function App() {
   const dispatch = useDispatch();
@@ -88,33 +90,9 @@ function App() {
       >
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<AdminDashboard />} />
-        <Route
-          path="products"
-          element={
-            <AdminPlaceholderPage
-              title="Products"
-              description="Manage your product list from this section."
-            />
-          }
-        />
-        <Route
-          path="orders"
-          element={
-            <AdminPlaceholderPage
-              title="Orders"
-              description="Review and update customer orders from this section."
-            />
-          }
-        />
-        <Route
-          path="promo-codes"
-          element={
-            <AdminPlaceholderPage
-              title="Promo Codes"
-              description="Create and manage promotional codes from this section."
-            />
-          }
-        />
+        <Route path="products" element={<AdminProducts />} />
+        <Route path="orders" element={<AdminOrders />} />
+        <Route path="promo-codes" element={<AdminPromoCodes />} />
       </Route>
     </Routes>
   );

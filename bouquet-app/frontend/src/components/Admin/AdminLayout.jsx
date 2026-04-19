@@ -42,8 +42,8 @@ export default function AdminLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <div className="flex min-h-screen">
+    <div className="h-screen overflow-hidden bg-slate-50 text-slate-900">
+      <div className="flex h-full">
         <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-fuchsia-50/40">
           <div className="border-b border-slate-200 px-6 py-6">
             <h1 className="text-2xl font-semibold tracking-tight">
@@ -64,7 +64,7 @@ export default function AdminLayout() {
                         [
                           "flex items-center gap-3 rounded-xl px-4 py-3 text-base font-medium transition",
                           isActive
-                            ? "bg-gradient-to-r from-fuchsia-500 to-violet-500 text-white shadow-sm"
+                            ? "bg-linear-to-r from-[#ff3b92] to-[#8b5cf6] text-white shadow-sm"
                             : "text-slate-700 hover:bg-white/80",
                         ].join(" ")
                       }
@@ -90,7 +90,7 @@ export default function AdminLayout() {
           </div>
         </aside>
 
-        <main className="flex-1 overflow-x-hidden p-8">
+        <main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-8">
           <Outlet />
         </main>
       </div>

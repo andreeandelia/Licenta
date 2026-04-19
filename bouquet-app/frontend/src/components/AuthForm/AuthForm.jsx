@@ -2,9 +2,8 @@ import { useMemo, useState } from "react";
 import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { loadMe } from "../../stores/actions/auth-actions";
+import { apiUrl } from "../../config/global";
 import "./AuthForm.css";
-
-const API_BASE = "http://localhost:8080";
 
 export default function AuthForm({ initialMode = "login" }) {
   const dispatch = useDispatch();
@@ -70,7 +69,7 @@ export default function AuthForm({ initialMode = "login" }) {
         ? { name: name.trim(), email: email.trim().toLowerCase(), password }
         : { email: email.trim().toLowerCase(), password };
 
-      const res = await fetch(`${API_BASE}${endpoint}`, {
+      const res = await fetch(apiUrl(endpoint), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

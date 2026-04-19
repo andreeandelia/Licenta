@@ -10,17 +10,31 @@ function formatPromoCode(promo) {
     return {
         code: promo.code,
         discountPercent: Number(promo.discountPercent || 0),
+        startDate: promo.startDate ? new Date(promo.startDate).toISOString().slice(0, 10) : '',
+        endDate: promo.endDate ? new Date(promo.endDate).toISOString().slice(0, 10) : '',
     };
+}
+
+function isPromoCurrentlyActive(promo, now = new Date()) {
+    if (!promo?.isActive) return false;
+    if (!promo.startDate || !promo.endDate) return false;
+    return promo.startDate <= now && promo.endDate >= now;
 }
 
 async function getAvailablePromoCodes(req, res, next) {
     try {
         const promoCodes = await prisma.promoCode.findMany({
-            where: { isActive: true },
+            where: {
+                isActive: true,
+                startDate: { lte: new Date() },
+                endDate: { gte: new Date() },
+            },
             orderBy: { code: 'asc' },
             select: {
                 code: true,
                 discountPercent: true,
+                startDate: true,
+                endDate: true,
             },
         });
 
@@ -43,10 +57,12 @@ async function validatePromoCode(req, res, next) {
                 code: true,
                 discountPercent: true,
                 isActive: true,
+                startDate: true,
+                endDate: true,
             },
         });
 
-        if (!promo || !promo.isActive) {
+        if (!promo || !isPromoCurrentlyActive(promo)) {
             return res.status(404).json({ error: 'Invalid promo code' });
         }
 

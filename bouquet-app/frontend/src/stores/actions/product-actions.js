@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:8080";
+import { apiUrl } from "../../config/global";
 
 export const fetchProducts =
     ({ type, colors, minPrice, maxPrice, inStock, page = 1, limit = 6 }) =>
@@ -15,7 +15,7 @@ export const fetchProducts =
             params.set("limit", String(limit));
 
             try {
-                const res = await fetch(`${API_BASE}/api/products?${params.toString()}`);
+                const res = await fetch(apiUrl(`/api/products?${params.toString()}`));
                 const data = await res.json().catch(() => ({}));
 
                 if (!res.ok) throw new Error(data?.error || "Failed to load products");

@@ -147,6 +147,78 @@
   cursor: not-allowed;
 }
 
+.orders-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  background: rgba(2, 6, 23, 0.45);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.orders-modal-card {
+  width: min(460px, 100%);
+  border-radius: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #fff;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.22);
+  padding: 18px;
+}
+
+.orders-modal-card h3 {
+  margin: 0;
+  color: #111827;
+  font-size: 20px;
+}
+
+.orders-modal-card p {
+  margin: 10px 0 0;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.orders-modal-actions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.orders-modal-btn {
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.orders-modal-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.orders-modal-btn-secondary {
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  background: #fff;
+  color: #1f2937;
+}
+
+.orders-modal-btn-secondary:hover:not(:disabled) {
+  background: #f8fafc;
+}
+
+.orders-modal-btn-danger {
+  border: 1px solid rgba(185, 28, 28, 0.3);
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.orders-modal-btn-danger:hover:not(:disabled) {
+  background: #fecaca;
+}
+
 @media (max-width: 860px) {
   .orders-wrap {
     padding: 18px 14px 34px;

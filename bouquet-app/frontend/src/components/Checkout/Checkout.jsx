@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { CalendarDays, Clock3, CreditCard, Tag, Truck } from "lucide-react";
 import { fetchCart } from "../../stores/actions/cart-actions";
-import { SERVER } from "../../config/global";
+import { apiUrl } from "../../config/global";
 import "./Checkout.css";
 
 const DELIVERY_OPTIONS = [
@@ -179,7 +179,7 @@ export default function Checkout() {
 
     async function loadPromoCodes() {
       try {
-        const res = await fetch(`${SERVER}/api/promos`, {
+        const res = await fetch(apiUrl("/api/promos"), {
           credentials: "include",
         });
 
@@ -282,7 +282,7 @@ export default function Checkout() {
       setPromoError("");
       setPromoMessage("");
 
-      const res = await fetch(`${SERVER}/api/promos/validate`, {
+      const res = await fetch(apiUrl("/api/promos/validate"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -340,7 +340,7 @@ export default function Checkout() {
       };
 
       if (paymentMethod === "ONLINE") {
-        const onlineRes = await fetch(`${SERVER}/api/orders/online/init`, {
+        const onlineRes = await fetch(apiUrl("/api/orders/online/init"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -364,7 +364,7 @@ export default function Checkout() {
         return;
       }
 
-      const res = await fetch(`${SERVER}/api/orders/cash-on-delivery`, {
+      const res = await fetch(apiUrl("/api/orders/cash-on-delivery"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

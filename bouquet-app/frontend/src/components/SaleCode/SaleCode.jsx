@@ -1,7 +1,7 @@
 import "./SaleCode.css";
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { SERVER } from "../../config/global";
+import { apiUrl } from "../../config/global";
 
 export default function SaleCode() {
   const [promo, setPromo] = useState(null);
@@ -11,7 +11,7 @@ export default function SaleCode() {
 
     async function loadPromo() {
       try {
-        const res = await fetch(`${SERVER}/api/promos`, {
+        const res = await fetch(apiUrl("/api/promos"), {
           credentials: "include",
         });
 

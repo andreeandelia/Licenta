@@ -1,9 +1,9 @@
-const API_BASE = "http://localhost:8080";
+import { apiUrl } from "../../config/global";
 
 export const loadMe = () => async (dispatch) => {
     dispatch({ type: 'AUTH_LOADING' });
     try {
-        const res = await fetch(`${API_BASE}/api/auth/me`, {
+        const res = await fetch(apiUrl("/api/auth/me"), {
             credentials: 'include'
         });
 
@@ -25,7 +25,7 @@ export const loadMe = () => async (dispatch) => {
 export const login = (email, password) => async (dispatch) => {
     dispatch({ type: 'AUTH_LOADING' });
     try {
-        const res = await fetch(`${API_BASE}/api/auth/login`, {
+        const res = await fetch(apiUrl("/api/auth/login"), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -50,7 +50,7 @@ export const login = (email, password) => async (dispatch) => {
 export const register = (name, email, password) => async (dispatch) => {
     dispatch({ type: 'AUTH_LOADING' });
     try {
-        const res = await fetch(`${API_BASE}/api/auth/register`, {
+        const res = await fetch(apiUrl("/api/auth/register"), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -73,7 +73,7 @@ export const register = (name, email, password) => async (dispatch) => {
 
 export const logout = () => async (dispatch) => {
     try {
-        await fetch(`${API_BASE}/api/auth/logout`, {
+        await fetch(apiUrl("/api/auth/logout"), {
             method: 'POST',
             credentials: 'include'
         });
@@ -85,7 +85,7 @@ export const logout = () => async (dispatch) => {
 
 export const updateProfile = (phone, address) => async (dispatch) => {
     try {
-        const res = await fetch(`${API_BASE}/api/auth/profile`, {
+        const res = await fetch(apiUrl("/api/auth/profile"), {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',

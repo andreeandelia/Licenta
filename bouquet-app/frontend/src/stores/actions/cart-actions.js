@@ -1,10 +1,10 @@
-const API_BASE = "http://localhost:8080";
+import { apiUrl } from "../../config/global";
 
 export const fetchCart = () => async (dispatch) => {
     dispatch({ type: "CART_LOADING" });
 
     try {
-        const res = await fetch(`${API_BASE}/api/cart`, {
+        const res = await fetch(apiUrl("/api/cart"), {
             credentials: "include",
         });
 
@@ -33,7 +33,7 @@ export const addBouquetToCart = ({ bouquetId, bouquet, quantity = 1 }) => async 
         if (bouquetId) body.bouquetId = bouquetId;
         if (!bouquetId && bouquet) body.bouquet = bouquet;
 
-        const res = await fetch(`${API_BASE}/api/cart/add`, {
+        const res = await fetch(apiUrl("/api/cart/add"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -53,7 +53,7 @@ export const addBouquetToCart = ({ bouquetId, bouquet, quantity = 1 }) => async 
 
 export const updateCartQuantity = (id, quantity) => async (dispatch) => {
     try {
-        const res = await fetch(`${API_BASE}/api/cart/${id}/quantity`, {
+        const res = await fetch(apiUrl(`/api/cart/${id}/quantity`), {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -73,7 +73,7 @@ export const updateCartQuantity = (id, quantity) => async (dispatch) => {
 
 export const removeCartItem = (id) => async (dispatch) => {
     try {
-        const res = await fetch(`${API_BASE}/api/cart/${id}`, {
+        const res = await fetch(apiUrl(`/api/cart/${id}`), {
             method: "DELETE",
             credentials: "include",
         });
@@ -95,7 +95,7 @@ export const clearCart = () => async (dispatch, getState) => {
     try {
         await Promise.all(
             currentItems.map((item) =>
-                fetch(`${API_BASE}/api/cart/${item.id}`, {
+                fetch(apiUrl(`/api/cart/${item.id}`), {
                     method: "DELETE",
                     credentials: "include",
                 }),

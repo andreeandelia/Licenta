@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { SERVER } from "../../config/global";
+import { apiUrl } from "../../config/global";
 import "./Orders.css";
 
 function formatLabel(value) {
@@ -28,6 +28,7 @@ export default function Orders() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [cancelling, setCancelling] = useState(null);
+  const [cancelTargetId, setCancelTargetId] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -37,7 +38,7 @@ export default function Orders() {
         setLoading(true);
         setError("");
 
-        const res = await fetch(`${SERVER}/api/orders`, {
+        const res = await fetch(apiUrl("/api/orders"), {
           credentials: "include",
         });
 
@@ -71,33 +72,27 @@ export default function Orders() {
   }, []);
 
   const handleCancelOrder = async (orderId) => {
-    if (
-      !window.confirm(
-        "Are you sure you want to cancel this order? Stock will be restored.",
-      )
-    ) {
-      return;
-    }
-
     try {
       setCancelling(orderId);
+      setError("");
 
-      const res = await fetch(`${SERVER}/api/orders/${orderId}/cancel`, {
+      const res = await fetch(apiUrl(`/api/orders/${orderId}/cancel`), {
         method: "DELETE",
         credentials: "include",
       });
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        alert(data?.error || "Could not cancel order.");
+        setError(data?.error || "Could not cancel order.");
         return;
       }
 
       setOrders((prevOrders) =>
         prevOrders.map((order) => (order.id === orderId ? data.order : order)),
       );
+      setCancelTargetId(null);
     } catch {
-      alert("Could not cancel order.");
+      setError("Could not cancel order.");
     } finally {
       setCancelling(null);
     }
@@ -175,11 +170,11 @@ export default function Orders() {
                   {order.promoCode ? `, Promo ${order.promoCode}` : ""}
                 </p>
               </div>
-              {order.status === "CONFIRMED" && (
+              {(order.status === "CONFIRMED" || order.status === "CREATED") && (
                 <button
                   className="orders-cancel-btn"
                   type="button"
-                  onClick={() => handleCancelOrder(order.id)}
+                  onClick={() => setCancelTargetId(order.id)}
                   disabled={cancelling === order.id}
                 >
                   {cancelling === order.id ? "Cancelling..." : "Cancel Order"}
@@ -187,6 +182,37 @@ export default function Orders() {
               )}
             </article>
           ))}
+        </div>
+      )}
+
+      {cancelTargetId && (
+        <div className="orders-modal-backdrop" role="dialog" aria-modal="true">
+          <div className="orders-modal-card">
+            <h3>Cancel this order?</h3>
+            <p>
+              This action will cancel your order and restore stock quantities.
+            </p>
+            <div className="orders-modal-actions">
+              <button
+                type="button"
+                className="orders-modal-btn orders-modal-btn-secondary"
+                onClick={() => setCancelTargetId(null)}
+                disabled={cancelling === cancelTargetId}
+              >
+                Keep order
+              </button>
+              <button
+                type="button"
+                className="orders-modal-btn orders-modal-btn-danger"
+                onClick={() => handleCancelOrder(cancelTargetId)}
+                disabled={cancelling === cancelTargetId}
+              >
+                {cancelling === cancelTargetId
+                  ? "Cancelling..."
+                  : "Yes, cancel"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </section>

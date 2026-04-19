@@ -1,7 +1,29 @@
 import { PrismaClient } from '@prisma/client';
+import fs from 'fs/promises';
+import path from 'path';
 
 const prisma = new PrismaClient();
 const TREND_MONTHS = 6;
+const DELIVERED_STATUS = 'DELIVERED';
+const VALID_OVERVIEW_STATUSES = [
+    'CONFIRMED',
+    'IN_PREPARATION',
+    'READY_FOR_DELIVERY',
+    'IN_DELIVERY',
+    'DELIVERED',
+];
+const PRODUCT_TYPES = new Set(['FLOWER', 'WRAPPING', 'ACCESSORY']);
+const PRODUCT_COLORS = new Set([
+    'PINK',
+    'RED',
+    'WHITE',
+    'YELLOW',
+    'PURPLE',
+    'BROWN',
+    'CLEAR',
+    'GOLD',
+    'SILVER',
+]);
 
 function round2(value) {
     return Number(Number(value || 0).toFixed(2));
@@ -46,10 +68,261 @@ function toCategoryLabel(type) {
     return 'Other';
 }
 
+function toProductResponse(product) {
+    return {
+        id: product.id,
+        name: product.name,
+        type: product.type,
+        price: Number(product.price),
+        stock: product.stock,
+        color: product.color,
+        imageUrl: product.imageUrl,
+        description: product.description,
+    };
+}
+
+function buildUploadedImageUrl(file) {
+    if (!file?.filename) return '';
+    return `/uploads/products/${file.filename}`;
+}
+
+async function removeUploadedFile(file) {
+    if (!file?.path) return;
+    try {
+        await fs.unlink(file.path);
+    } catch {
+        // noop
+    }
+}
+
+async function removeStoredUpload(imageUrl) {
+    const normalized = String(imageUrl || '');
+    if (!normalized.startsWith('/uploads/products/')) return;
+
+    const absolutePath = path.join(process.cwd(), normalized.replace(/^\//, ''));
+    try {
+        await fs.unlink(absolutePath);
+    } catch {
+        // noop
+    }
+}
+
+function parseProductPayload(payload = {}, options = {}) {
+    const name = String(payload.name || '').trim();
+    const type = String(payload.type || '').toUpperCase();
+    const imageUrl = String(options.imageUrl || '').trim();
+    const requireImage = Boolean(options.requireImage);
+    const descriptionRaw = payload.description == null ? '' : String(payload.description).trim();
+    const colorRaw = payload.color == null ? '' : String(payload.color).trim().toUpperCase();
+    const stock = Number(payload.stock);
+    const price = Number(payload.price);
+
+    if (!name) {
+        return { error: 'Product name is required' };
+    }
+
+    if (!PRODUCT_TYPES.has(type)) {
+        return { error: 'Invalid product type' };
+    }
+
+    if (!Number.isFinite(price) || price < 0) {
+        return { error: 'Price must be a valid positive number' };
+    }
+
+    if (!Number.isInteger(stock) || stock < 0) {
+        return { error: 'Stock must be a non-negative integer' };
+    }
+
+    if (requireImage && !imageUrl) {
+        return { error: 'Product image is required' };
+    }
+
+    if (colorRaw && !PRODUCT_COLORS.has(colorRaw)) {
+        return { error: 'Invalid color value' };
+    }
+
+    return {
+        data: {
+            name,
+            type,
+            price,
+            stock,
+            imageUrl,
+            description: descriptionRaw || null,
+            color: colorRaw || null,
+        },
+    };
+}
+
+export async function listAdminProducts(req, res, next) {
+    try {
+        const search = String(req.query.search || '').trim();
+        const type = String(req.query.type || '').trim().toUpperCase();
+
+        if (type && !PRODUCT_TYPES.has(type)) {
+            return res.status(400).json({ error: 'Invalid product type filter' });
+        }
+
+        const where = {};
+
+        if (search) {
+            where.name = {
+                contains: search,
+                mode: 'insensitive',
+            };
+        }
+
+        if (type) {
+            where.type = type;
+        }
+
+        const products = await prisma.product.findMany({
+            where,
+            orderBy: { name: 'asc' },
+            select: {
+                id: true,
+                name: true,
+                type: true,
+                price: true,
+                stock: true,
+                color: true,
+                imageUrl: true,
+                description: true,
+            },
+        });
+
+        return res.json({
+            items: products.map(toProductResponse),
+        });
+    } catch (err) {
+        return next(err);
+    }
+}
+
+export async function createAdminProduct(req, res, next) {
+    try {
+        const parsed = parseProductPayload(req.body, {
+            imageUrl: buildUploadedImageUrl(req.file),
+            requireImage: true,
+        });
+
+        if (parsed.error) {
+            await removeUploadedFile(req.file);
+            return res.status(400).json({ error: parsed.error });
+        }
+
+        const product = await prisma.product.create({
+            data: parsed.data,
+            select: {
+                id: true,
+                name: true,
+                type: true,
+                price: true,
+                stock: true,
+                color: true,
+                imageUrl: true,
+                description: true,
+            },
+        });
+
+        return res.status(201).json({
+            item: toProductResponse(product),
+        });
+    } catch (err) {
+        await removeUploadedFile(req.file);
+        return next(err);
+    }
+}
+
+export async function updateAdminProduct(req, res, next) {
+    try {
+        const id = String(req.params.id);
+        const existing = await prisma.product.findUnique({
+            where: { id },
+            select: { id: true, imageUrl: true },
+        });
+
+        if (!existing) {
+            await removeUploadedFile(req.file);
+            return res.status(404).json({ error: 'Product not found' });
+        }
+
+        const parsed = parseProductPayload(req.body, {
+            imageUrl: buildUploadedImageUrl(req.file) || existing.imageUrl,
+            requireImage: true,
+        });
+
+        if (parsed.error) {
+            await removeUploadedFile(req.file);
+            return res.status(400).json({ error: parsed.error });
+        }
+
+        const product = await prisma.product.update({
+            where: { id },
+            data: parsed.data,
+            select: {
+                id: true,
+                name: true,
+                type: true,
+                price: true,
+                stock: true,
+                color: true,
+                imageUrl: true,
+                description: true,
+            },
+        });
+
+        if (req.file && existing.imageUrl && existing.imageUrl !== product.imageUrl) {
+            await removeStoredUpload(existing.imageUrl);
+        }
+
+        return res.json({
+            item: toProductResponse(product),
+        });
+    } catch (err) {
+        await removeUploadedFile(req.file);
+        return next(err);
+    }
+}
+
+export async function deleteAdminProduct(req, res, next) {
+    try {
+        const id = String(req.params.id);
+        const existing = await prisma.product.findUnique({
+            where: { id },
+            select: { id: true, imageUrl: true },
+        });
+
+        if (!existing) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+
+        await prisma.product.delete({
+            where: { id },
+        });
+
+        await removeStoredUpload(existing.imageUrl);
+
+        return res.status(204).send();
+    } catch (err) {
+        if (err?.code === 'P2025') {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+
+        if (err?.code === 'P2003') {
+            return res.status(409).json({
+                error: 'Product cannot be deleted because it is used in bouquets',
+            });
+        }
+
+        return next(err);
+    }
+}
+
 export async function getDashboardStats(req, res, next) {
     try {
-        const confirmedOrders = await prisma.order.findMany({
-            where: { status: 'CONFIRMED' },
+        const deliveredOrders = await prisma.order.findMany({
+            where: { status: DELIVERED_STATUS },
             select: {
                 id: true,
                 createdAt: true,
@@ -80,14 +353,29 @@ export async function getDashboardStats(req, res, next) {
             },
         });
 
+        const validOrders = await prisma.order.findMany({
+            where: {
+                status: {
+                    in: VALID_OVERVIEW_STATUSES,
+                },
+            },
+            select: {
+                id: true,
+                createdAt: true,
+                customerEmail: true,
+                userId: true,
+            },
+        });
+
         const totalRevenue = round2(
-            confirmedOrders.reduce((sum, order) => sum + Number(order.finalPrice || 0), 0),
+            deliveredOrders.reduce((sum, order) => sum + Number(order.finalPrice || 0), 0),
         );
-        const totalOrders = confirmedOrders.length;
-        const avgOrderValue = totalOrders > 0 ? round2(totalRevenue / totalOrders) : 0;
+        const deliveredOrdersCount = deliveredOrders.length;
+        const avgOrderValue = deliveredOrdersCount > 0 ? round2(totalRevenue / deliveredOrdersCount) : 0;
+        const totalOrders = validOrders.length;
 
         const uniqueCustomers = new Set();
-        confirmedOrders.forEach((order) => {
+        validOrders.forEach((order) => {
             const email = String(order.customerEmail || '').trim().toLowerCase();
             if (email) {
                 uniqueCustomers.add(`email:${email}`);
@@ -111,7 +399,7 @@ export async function getDashboardStats(req, res, next) {
             customerSetsByMonth.set(monthKey(monthDate), new Set());
         });
 
-        confirmedOrders.forEach((order) => {
+        deliveredOrders.forEach((order) => {
             const createdAt = new Date(order.createdAt);
             const key = monthKey(createdAt);
 
@@ -121,6 +409,13 @@ export async function getDashboardStats(req, res, next) {
                 key,
                 monthRevenueMap.get(key) + Number(order.finalPrice || 0),
             );
+
+        });
+
+        validOrders.forEach((order) => {
+            const createdAt = new Date(order.createdAt);
+            const key = monthKey(createdAt);
+            if (!customerSetsByMonth.has(key)) return;
 
             const email = String(order.customerEmail || '').trim().toLowerCase();
             if (email) {
@@ -143,7 +438,7 @@ export async function getDashboardStats(req, res, next) {
         const currentMonthRevenue = salesTrend[salesTrend.length - 1]?.revenue || 0;
         const previousMonthRevenue = salesTrend[salesTrend.length - 2]?.revenue || 0;
 
-        const currentMonthOrders = confirmedOrders.filter((order) => {
+        const currentMonthOrders = validOrders.filter((order) => {
             const createdAt = new Date(order.createdAt);
             const currentMonth = recentMonths[recentMonths.length - 1];
             return (
@@ -152,7 +447,7 @@ export async function getDashboardStats(req, res, next) {
             );
         }).length;
 
-        const previousMonthOrders = confirmedOrders.filter((order) => {
+        const previousMonthOrders = validOrders.filter((order) => {
             const createdAt = new Date(order.createdAt);
             const previousMonth = recentMonths[recentMonths.length - 2];
             return (
@@ -174,7 +469,7 @@ export async function getDashboardStats(req, res, next) {
             Accessories: 0,
         };
 
-        confirmedOrders.forEach((order) => {
+        deliveredOrders.forEach((order) => {
             order.lines.forEach((line) => {
                 const bouquetItems = Array.isArray(line?.bouquet?.items) ? line.bouquet.items : [];
                 if (bouquetItems.length === 0) return;

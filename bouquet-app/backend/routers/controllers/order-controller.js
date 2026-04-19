@@ -437,7 +437,7 @@ async function createCashOnDeliveryOrder(req, res, next) {
                     totalDiscount,
                     deliveryTax,
                     finalPrice,
-                    status: 'CONFIRMED',
+                    status: 'CREATED',
                     lines: {
                         create: normalizedCartItems.map((item) => ({
                             bouquetId: item.bouquetId,
@@ -655,7 +655,7 @@ async function createOnlinePaymentOrder(req, res, next) {
                         totalDiscount,
                         deliveryTax,
                         finalPrice,
-                        status: 'PENDING_PAYMENT',
+                        status: 'CREATED',
                         lines: {
                             create: normalizedCartItems.map((item) => ({
                                 bouquetId: item.bouquetId,
@@ -720,7 +720,7 @@ async function handleStripeWebhook(req, res, next) {
                     },
                 });
 
-                if (!order || order.status !== 'PENDING_PAYMENT') {
+                if (!order || order.status !== 'CREATED') {
                     return;
                 }
 
@@ -770,7 +770,7 @@ async function handleStripeWebhook(req, res, next) {
                         },
                     });
 
-                    if (!order || order.status !== 'PENDING_PAYMENT') {
+                    if (!order || order.status !== 'CREATED') {
                         return;
                     }
 
@@ -865,9 +865,9 @@ async function cancelOrder(req, res, next) {
             return res.status(403).json({ error: 'You can cancel only your own orders' });
         }
 
-        if (order.status !== 'CONFIRMED' && order.status !== 'PENDING_PAYMENT') {
-            return res.status(400).json({
-                error: `Cannot cancel order with status ${order.status}. Only CONFIRMED or PENDING_PAYMENT orders can be cancelled.`,
+        if (order.status !== 'CONFIRMED' && order.status !== 'CREATED') {
+            return res.status(409).json({
+                error: `Cannot cancel order with status ${order.status}. Only CONFIRMED or CREATED orders can be cancelled.`,
             });
         }
 

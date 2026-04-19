@@ -1,10 +1,10 @@
-const API_BASE = "http://localhost:8080";
+import { apiUrl } from "../../config/global";
 
 export const fetchWishlist = () => async (dispatch) => {
     dispatch({ type: "WISHLIST_LOADING" });
 
     try {
-        const res = await fetch(`${API_BASE}/api/wishlist`, {
+        const res = await fetch(apiUrl("/api/wishlist"), {
             credentials: "include",
         });
 
@@ -21,7 +21,7 @@ export const addWishlistItem = (bouquet) => async (dispatch) => {
     dispatch({ type: "WISHLIST_SAVING" });
 
     try {
-        const res = await fetch(`${API_BASE}/api/wishlist`, {
+        const res = await fetch(apiUrl("/api/wishlist"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -41,7 +41,7 @@ export const addWishlistItem = (bouquet) => async (dispatch) => {
 
 export const removeWishlistItem = (id) => async (dispatch) => {
     try {
-        const res = await fetch(`${API_BASE}/api/wishlist/${id}`, {
+        const res = await fetch(apiUrl(`/api/wishlist/${id}`), {
             method: "DELETE",
             credentials: "include",
         });
@@ -57,7 +57,7 @@ export const removeWishlistItem = (id) => async (dispatch) => {
 
 export const clearWishlist = () => async (dispatch) => {
     try {
-        const res = await fetch(`${API_BASE}/api/wishlist`, {
+        const res = await fetch(apiUrl("/api/wishlist"), {
             method: "DELETE",
             credentials: "include",
         });
@@ -75,7 +75,7 @@ export const updateWishlistTitle = (id, title) => async (dispatch) => {
     dispatch({ type: "WISHLIST_SAVING" });
 
     try {
-        const res = await fetch(`${API_BASE}/api/wishlist/${id}/title`, {
+        const res = await fetch(apiUrl(`/api/wishlist/${id}/title`), {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             credentials: "include",

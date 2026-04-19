@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { DollarSign, Package, Users, WalletCards } from "lucide-react";
-
-const API_BASE = "http://localhost:8080";
+import { apiUrl } from "../../config/global";
 
 const defaultData = {
   summary: {
@@ -58,7 +57,7 @@ export default function AdminDashboard() {
       setError("");
 
       try {
-        const res = await fetch(`${API_BASE}/api/admin/dashboard`, {
+        const res = await fetch(apiUrl("/api/admin/dashboard"), {
           credentials: "include",
         });
 
@@ -171,12 +170,12 @@ export default function AdminDashboard() {
   );
 
   return (
-    <section>
-      <header className="mb-7">
+    <section className="w-full min-w-0">
+      <header className="mb-6">
         <h2 className="text-4xl font-semibold tracking-tight text-slate-900">
           Dashboard Overview
         </h2>
-        <p className="mt-2 text-lg text-slate-500">
+        <p className="mt-2 text-base text-slate-500">
           {loading
             ? "Loading real-time data..."
             : "Welcome to your admin dashboard"}
@@ -184,23 +183,42 @@ export default function AdminDashboard() {
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
       </header>
 
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+      {/* KPI ROW */}
+      <div className="flex flex-wrap gap-4">
         {stats.map((item) => {
           const Icon = item.icon;
+          const isAvgCard = item.title === "Avg Order Value";
+
           return (
             <article
               key={item.title}
-              className="rounded-2xl border border-slate-200 bg-white p-6"
+              className="min-w-0 rounded-2xl border border-slate-200 bg-white px-4 py-4"
+              style={{
+                flex: "1 1 220px",
+                minWidth: "220px",
+              }}
             >
-              <div className="flex items-center justify-between text-slate-500">
-                <span className="text-base font-medium">{item.title}</span>
-                <Icon size={18} />
+              <div className="flex items-start justify-between gap-3 text-slate-500">
+                <span className="text-sm font-medium text-slate-700">
+                  {item.title}
+                </span>
+
+                <Icon size={16} className="shrink-0" />
               </div>
-              <div className="mt-7">
-                <p className="text-4xl font-semibold tracking-tight text-slate-900">
+
+              <div className="mt-4">
+                <p
+                  className="truncate leading-none font-semibold tracking-tight text-slate-900"
+                  style={{ fontSize: "25px" }}
+                >
                   {item.value}
                 </p>
-                <p className="mt-2 text-sm font-medium text-emerald-600">
+
+                <p
+                  className={`mt-3 text-xs font-medium ${
+                    isAvgCard ? "text-slate-500" : "text-emerald-600"
+                  }`}
+                >
                   {loading ? "Loading..." : item.meta}
                 </p>
               </div>
@@ -209,93 +227,104 @@ export default function AdminDashboard() {
         })}
       </div>
 
-      <div className="mt-5 grid gap-5 xl:grid-cols-2">
-        <article className="rounded-2xl border border-slate-200 bg-white p-6">
+      {/* CHARTS ROW */}
+      <div className="mt-5 flex flex-wrap gap-5">
+        <article
+          className="min-w-0 rounded-2xl border border-slate-200 bg-white p-6"
+          style={{
+            flex: "1.6 1 620px",
+            minWidth: "620px",
+          }}
+        >
           <h3 className="text-2xl font-semibold tracking-tight text-slate-900">
             Sales Trend
           </h3>
 
-          <div className="mt-6 overflow-x-auto">
-            <div className="min-w-[500px]">
-              <svg viewBox="0 0 460 210" className="h-[280px] w-full">
-                {[20, 60, 100, 140, 180].map((y) => (
-                  <line
-                    key={y}
-                    x1="0"
-                    y1={y}
-                    x2="440"
-                    y2={y}
-                    className="text-slate-200"
-                    stroke="currentColor"
-                    strokeDasharray="4 4"
-                    strokeWidth="1"
-                  />
-                ))}
+          <div className="mt-6">
+            <svg viewBox="0 0 460 210" className="h-70 w-full">
+              {[20, 60, 100, 140, 180].map((y) => (
+                <line
+                  key={y}
+                  x1="0"
+                  y1={y}
+                  x2="440"
+                  y2={y}
+                  className="text-slate-200"
+                  stroke="currentColor"
+                  strokeDasharray="4 4"
+                  strokeWidth="1"
+                />
+              ))}
 
-                {[88, 176, 264, 352, 440].map((x) => (
-                  <line
-                    key={x}
-                    x1={x}
-                    y1="20"
-                    x2={x}
-                    y2="180"
-                    className="text-slate-200"
-                    stroke="currentColor"
-                    strokeDasharray="4 4"
-                    strokeWidth="1"
-                  />
-                ))}
+              {[88, 176, 264, 352, 440].map((x) => (
+                <line
+                  key={x}
+                  x1={x}
+                  y1="20"
+                  x2={x}
+                  y2="180"
+                  className="text-slate-200"
+                  stroke="currentColor"
+                  strokeDasharray="4 4"
+                  strokeWidth="1"
+                />
+              ))}
 
-                <polyline
-                  fill="none"
+              <polyline
+                fill="none"
+                className="text-pink-500"
+                stroke="currentColor"
+                strokeWidth="3"
+                points={linePath}
+              />
+
+              {chartPoints.map((point) => (
+                <circle
+                  key={point.label}
+                  cx={point.x}
+                  cy={point.y}
+                  r="4"
+                  fill="white"
                   className="text-pink-500"
                   stroke="currentColor"
-                  strokeWidth="3"
-                  points={linePath}
+                  strokeWidth="2"
                 />
+              ))}
 
-                {chartPoints.map((point) => (
-                  <circle
-                    key={point.label}
-                    cx={point.x}
-                    cy={point.y}
-                    r="4"
-                    fill="white"
-                    className="text-pink-500"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  />
-                ))}
-
-                {chartPoints.map((point) => (
-                  <text
-                    key={`label-${point.label}`}
-                    x={point.x}
-                    y="198"
-                    textAnchor="middle"
-                    className="text-slate-500"
-                    fill="currentColor"
-                    fontSize="14"
-                  >
-                    {point.label}
-                  </text>
-                ))}
-              </svg>
-            </div>
+              {chartPoints.map((point) => (
+                <text
+                  key={`label-${point.label}`}
+                  x={point.x}
+                  y="198"
+                  textAnchor="middle"
+                  className="text-slate-500"
+                  fill="currentColor"
+                  fontSize="14"
+                >
+                  {point.label}
+                </text>
+              ))}
+            </svg>
           </div>
 
-          <div className="mt-2 flex items-center justify-center gap-2 text-lg font-medium text-pink-500">
+          <div className="mt-2 flex items-center justify-center gap-2 text-base font-medium text-pink-500">
             <span aria-hidden="true">◦</span>
             Sales (RON)
           </div>
         </article>
 
-        <article className="rounded-2xl border border-slate-200 bg-white p-6">
+        <article
+          className="min-w-0 rounded-2xl border border-slate-200 bg-white p-6"
+          style={{
+            flex: "1 1 380px",
+            minWidth: "380px",
+          }}
+        >
           <h3 className="text-2xl font-semibold tracking-tight text-slate-900">
             Sales by Category
           </h3>
 
-          <div className="mt-8 flex h-[280px] items-end justify-around gap-6 border-b border-slate-200 px-4 pb-4">
+          <div className="mt-8 flex h-70 items-end justify-around gap-4 border-b border-slate-200 px-2 pb-4">
             {categoryData.map((item) => {
               const height = Math.max(
                 (Number(item.revenue || 0) / maxCategoryValue) * 220,
@@ -305,19 +334,21 @@ export default function AdminDashboard() {
               return (
                 <div
                   key={item.label}
-                  className="flex w-full flex-1 flex-col items-center gap-3"
+                  className="flex min-w-0 flex-1 flex-col items-center gap-3"
                 >
                   <div
-                    className="w-full max-w-24 rounded-t-md bg-pink-500"
+                    className="w-full max-w-20 rounded-t-md bg-pink-500"
                     style={{ height }}
                   />
-                  <p className="text-lg text-slate-600">{item.label}</p>
+                  <p className="text-center text-sm text-slate-600">
+                    {item.label}
+                  </p>
                 </div>
               );
             })}
           </div>
 
-          <div className="mt-4 flex items-center justify-center gap-2 text-lg font-medium text-pink-500">
+          <div className="mt-4 flex items-center justify-center gap-2 text-base font-medium text-pink-500">
             <span aria-hidden="true">■</span>
             Revenue (RON)
           </div>

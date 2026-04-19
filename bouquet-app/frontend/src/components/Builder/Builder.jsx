@@ -10,6 +10,7 @@ import {
   changeQty,
   clearBouquet,
 } from "../../stores/actions/bouquet-actions";
+import { mediaUrl } from "../../config/global";
 import "./Builder.css";
 
 const STEPS = [
@@ -54,7 +55,12 @@ const ASSET_INDEX = Object.entries(ASSET_FILES).reduce((acc, [key, url]) => {
 function resolveImageSrc(imageUrl) {
   if (!imageUrl) return "";
 
-  const normalized = String(imageUrl)
+  const raw = String(imageUrl).trim();
+  if (/^https?:\/\//i.test(raw) || raw.startsWith("/uploads/")) {
+    return mediaUrl(raw);
+  }
+
+  const normalized = raw
     .trim()
     .replace(/^\/+/, "")
     .replace(/^assets\//i, "")
