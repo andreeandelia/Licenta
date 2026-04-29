@@ -1,3 +1,8 @@
+.checkout-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #f7e8f1 0%, #ffffff 100%);
+}
+
 .checkout-wrap {
   max-width: 1400px;
   margin: 0 auto;
@@ -12,6 +17,8 @@
   margin: 0;
   color: #111827;
   font-size: 28px;
+  font-weight: 500;
+  line-height: 1.2;
 }
 
 .checkout-head p {
@@ -197,9 +204,10 @@
   color: #111827;
   border-radius: 10px;
   padding: 0 18px;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .promo-row button:hover:not(:disabled) {
@@ -378,11 +386,12 @@
   border: none;
   border-radius: 10px;
   padding: 12px 14px;
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 700;
   color: #fff;
   background: linear-gradient(90deg, #ff3b92 0%, #8b5cf6 100%);
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .checkout-place-order:hover {

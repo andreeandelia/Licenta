@@ -32,7 +32,7 @@ export default function ShopByCategory() {
 
         <div className="cat-grid">
           {categories.map((c) => (
-            <div className="cat-card">
+            <div className="cat-card" key={c.title}>
               <div className="cat-imageWrap">
                 <img src={c.image} alt={c.title} className="cat-image" />
               </div>

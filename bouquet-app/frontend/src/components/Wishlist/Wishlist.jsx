@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
-import { Pencil, ShoppingCart, Trash2 } from "lucide-react";
+import { Heart, Pencil, ShoppingCart, Trash2 } from "lucide-react";
 import { setBouquet } from "../../stores/actions/bouquet-actions";
 import { addBouquetToCart } from "../../stores/actions/cart-actions";
 import {
@@ -102,7 +102,7 @@ export default function Wishlist() {
             type="button"
             onClick={() => dispatch(clearWishlist())}
           >
-            Clear Wishlist
+            <Trash2 size={15} /> Clear Wishlist
           </button>
         )}
       </div>
@@ -111,7 +111,16 @@ export default function Wishlist() {
       {error && !loading && <div className="wishlist-state error">{error}</div>}
 
       {!loading && !error && items.length === 0 && (
-        <div className="wishlist-state">No saved bouquets yet.</div>
+        <div className="wishlist-empty">
+          <div className="wishlist-empty-icon" aria-hidden="true">
+            <Heart size={28} />
+          </div>
+          <h2>No saved bouquets yet.</h2>
+          <p>Start building a bouquet and save it to your wishlist for later</p>
+          <Link to="/builder" className="wishlist-empty-cta">
+            Go to Builder
+          </Link>
+        </div>
       )}
 
       {!loading && !error && items.length > 0 && (

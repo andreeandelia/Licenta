@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { Package2 } from "lucide-react";
 import { apiUrl } from "../../config/global";
 import "./Orders.css";
 
@@ -102,14 +104,24 @@ export default function Orders() {
     <section className="orders-wrap">
       <div className="orders-head">
         <h1>My Orders</h1>
-        <p>Track your confirmed bouquets and delivery details.</p>
       </div>
 
       {loading && <div className="orders-state">Loading orders...</div>}
       {error && !loading && <div className="orders-state error">{error}</div>}
 
       {!loading && !error && orders.length === 0 && (
-        <div className="orders-state">You have no orders yet.</div>
+        <div className="orders-empty">
+          <div className="orders-empty-icon" aria-hidden="true">
+            <Package2 size={28} />
+          </div>
+          <h2>No orders yet.</h2>
+          <p>
+            Start building a bouquet and place your first order to see it here.
+          </p>
+          <Link to="/builder" className="orders-empty-cta">
+            Start Building
+          </Link>
+        </div>
       )}
 
       {!loading && !error && orders.length > 0 && (

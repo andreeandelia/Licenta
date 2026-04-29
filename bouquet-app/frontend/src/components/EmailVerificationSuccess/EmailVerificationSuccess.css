@@ -3,7 +3,7 @@
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: linear-gradient(180deg, #fff8fc 0%, #f7e8f1 100%);
+  background: linear-gradient(180deg, #f7e8f1 0%, #f9eef4 45%, #f7e8f1 100%);
   padding: 20px;
 }
 
@@ -13,8 +13,8 @@
   padding: 40px;
   text-align: center;
   max-width: 540px;
-  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.1);
-  border: 1px solid rgba(229, 0, 121, 0.15);
+  box-shadow: 0 14px 45px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.06);
   animation: emailVerifySlideUp 0.4s ease-out;
 }
 
@@ -62,12 +62,13 @@
   border-radius: 999px;
   padding: 12px 20px;
   color: #ffffff;
-  background: linear-gradient(90deg, #e50079 0%, #c237be 55%, #9b16f7 100%);
-  font-size: 14px;
+  background: linear-gradient(90deg, #e50079 0%, #c237be 50%, #9b16f7 100%);
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .email-verify-success-button:hover {
-  filter: brightness(1.05);
+  background: linear-gradient(90deg, #e50079 0%, #c237be 50%, #9b16f7 100%);
 }

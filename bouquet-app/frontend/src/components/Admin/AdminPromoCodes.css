@@ -1,0 +1,30 @@
+.admin-promos-table {
+  display: block;
+}
+
+.admin-promos-cards {
+  display: none;
+}
+
+/* Telefon + tabletă mică */
+@media (max-width: 1023px) {
+  .admin-promos-table {
+    display: none;
+  }
+
+  .admin-promos-cards {
+    display: grid;
+    gap: 12px;
+  }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+  .admin-promos-table {
+    display: block;
+  }
+
+  .admin-promos-cards {
+    display: none;
+  }
+}

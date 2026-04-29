@@ -19,12 +19,17 @@ function normalizeBouquetPayload(input) {
     const flowers = Array.isArray(bouquet.flowers) ? bouquet.flowers : [];
     const accessories = Array.isArray(bouquet.accessories) ? bouquet.accessories : [];
     const wrapping = bouquet.wrapping && typeof bouquet.wrapping === 'object' ? bouquet.wrapping : null;
+    const greetingCardMessage = String(bouquet.greetingCardMessage || '').trim().slice(0, 200);
+    const hasGreetingCard = accessories.some((item) =>
+        String(item?.name || '').trim().toLowerCase().includes('greeting card'),
+    );
 
     const normalizeItem = (item) => ({
         id: String(item.id || ''),
         name: String(item.name || ''),
         price: Number(item.price) || 0,
         qty: Math.max(1, Number(item.qty) || 1),
+        imageUrl: String(item.imageUrl || ''),
     });
 
     return {
@@ -35,8 +40,10 @@ function normalizeBouquetPayload(input) {
                 id: String(wrapping.id || ''),
                 name: String(wrapping.name || ''),
                 price: Number(wrapping.price) || 0,
+                imageUrl: String(wrapping.imageUrl || ''),
             }
             : null,
+        greetingCardMessage: hasGreetingCard ? greetingCardMessage : '',
     };
 }
 

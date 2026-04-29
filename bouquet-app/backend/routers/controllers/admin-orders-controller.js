@@ -1,6 +1,14 @@
 import { PrismaClient } from '@prisma/client';
+import { sendOrderStatusEmail } from '../../utils/emailService.js';
 
 const prisma = new PrismaClient();
+
+const EMAIL_NOTIFICATION_STATUSES = new Set([
+    'CONFIRMED',
+    'IN_PREPARATION',
+    'IN_DELIVERY',
+    'DELIVERED',
+]);
 
 const VALID_ORDER_STATUSES = new Set([
     'CREATED',
@@ -65,6 +73,7 @@ function toOrderDetail(order) {
             bouquet: line.bouquet ? {
                 id: line.bouquet.id,
                 price: round2(line.bouquet.price),
+                greetingCardMessage: String(line.bouquet.greetingCardMessage || '').trim(),
                 items: (line.bouquet.items || []).map((item) => ({
                     id: item.id,
                     quantity: item.quantity,
@@ -164,7 +173,18 @@ export async function updateAdminOrderStatus(req, res, next) {
 
         const existing = await prisma.order.findUnique({
             where: { id },
-            select: { id: true, status: true },
+            select: {
+                id: true,
+                status: true,
+                customerEmail: true,
+                customerName: true,
+                user: {
+                    select: {
+                        email: true,
+                        name: true,
+                    },
+                },
+            },
         });
 
         if (!existing) {
@@ -197,6 +217,26 @@ export async function updateAdminOrderStatus(req, res, next) {
                 },
             },
         });
+
+        const shouldSendEmail =
+            existing.status !== newStatus &&
+            EMAIL_NOTIFICATION_STATUSES.has(newStatus);
+
+        if (shouldSendEmail) {
+            const recipientEmail = existing.customerEmail || existing.user?.email;
+            const recipientName = existing.customerName || existing.user?.name;
+
+            if (recipientEmail) {
+                try {
+                    await sendOrderStatusEmail(recipientEmail, updated.id, newStatus, recipientName);
+                } catch (emailError) {
+                    console.error(
+                        `Failed to send status email for order ${updated.id} and status ${newStatus}:`,
+                        emailError
+                    );
+                }
+            }
+        }
 
         return res.json({
             item: toOrderDetail(updated),

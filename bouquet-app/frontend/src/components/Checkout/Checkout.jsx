@@ -390,6 +390,7 @@ export default function Checkout() {
   };
 
   return (
+    <div className="checkout-page">
     <section className="checkout-wrap">
       <header className="checkout-head">
         <h1>Checkout</h1>
@@ -653,10 +654,6 @@ export default function Checkout() {
                   </button>
                 ))}
               </div>
-
-              <p className="promo-help">
-                Choose Cash on Delivery or pay online with Stripe.
-              </p>
             </article>
           </div>
 
@@ -738,5 +735,6 @@ export default function Checkout() {
         </div>
       )}
     </section>
+    </div>
   );
 }

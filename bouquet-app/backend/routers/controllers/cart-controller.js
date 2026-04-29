@@ -45,7 +45,12 @@ function mapBouquetDetails(bouquet) {
         }
     });
 
-    return { flowers, accessories, wrapping };
+    return {
+        flowers,
+        accessories,
+        wrapping,
+        greetingCardMessage: String(bouquet?.greetingCardMessage || '').trim(),
+    };
 }
 
 function normalizeBouquetPayload(input) {
@@ -54,6 +59,11 @@ function normalizeBouquetPayload(input) {
     const flowers = Array.isArray(bouquet.flowers) ? bouquet.flowers : [];
     const accessories = Array.isArray(bouquet.accessories) ? bouquet.accessories : [];
     const wrapping = bouquet.wrapping && typeof bouquet.wrapping === 'object' ? bouquet.wrapping : null;
+    const greetingCardMessage = String(bouquet.greetingCardMessage || '').trim().slice(0, 200);
+
+    const hasGreetingCard = accessories.some((item) =>
+        String(item?.name || '').trim().toLowerCase().includes('greeting card'),
+    );
 
     const normalizeItem = (item) => ({
         id: String(item.id || ''),
@@ -72,6 +82,7 @@ function normalizeBouquetPayload(input) {
                 price: Number(wrapping.price) || 0,
             }
             : null,
+        greetingCardMessage: hasGreetingCard ? greetingCardMessage : '',
     };
 }
 
@@ -120,6 +131,7 @@ async function createBouquetFromPayload(rawBouquet) {
     return prisma.bouquet.create({
         data: {
             price: bouquetTotal,
+            greetingCardMessage: bouquet.greetingCardMessage || null,
             items: {
                 create: lineItems.map((item) => ({
                     productId: item.id,

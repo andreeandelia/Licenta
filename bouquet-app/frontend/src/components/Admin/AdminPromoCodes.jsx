@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { AlertTriangle, Pencil, Plus, Trash2, X } from "lucide-react";
 import { apiUrl } from "../../config/global";
+import "./AdminConfirmDialog.css";
+import "./AdminPromoCodes.css";
 
 const todayAsInputValue = () => {
   const now = new Date();
@@ -62,6 +64,15 @@ export default function AdminPromoCodes() {
   const [saving, setSaving] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState("");
 
+  const FORM_MODAL_ANIMATION_MS = 220;
+  const [isFormModalClosing, setIsFormModalClosing] = useState(false);
+
+  const DELETE_DIALOG_ANIMATION_MS = 220;
+
+  const [promoToDelete, setPromoToDelete] = useState(null);
+  const [isDeleteDialogClosing, setIsDeleteDialogClosing] = useState(false);
+  const [deletingPromo, setDeletingPromo] = useState(false);
+
   async function loadPromos() {
     setLoading(true);
     setError("");
@@ -90,12 +101,38 @@ export default function AdminPromoCodes() {
     loadPromos();
   }, []);
 
+  useEffect(() => {
+    if (!isDeleteDialogClosing) return;
+
+    const timer = setTimeout(() => {
+      setPromoToDelete(null);
+      setIsDeleteDialogClosing(false);
+    }, DELETE_DIALOG_ANIMATION_MS);
+
+    return () => clearTimeout(timer);
+  }, [isDeleteDialogClosing]);
+
   const hasNoData = useMemo(
     () => !loading && !error && items.length === 0,
     [loading, error, items.length],
   );
 
+  useEffect(() => {
+    if (!isFormModalClosing) return;
+
+    const timer = setTimeout(() => {
+      setIsModalOpen(false);
+      setIsFormModalClosing(false);
+      setEditingPromo(null);
+      setFormValues(toFormValues(null));
+      setFormError("");
+    }, FORM_MODAL_ANIMATION_MS);
+
+    return () => clearTimeout(timer);
+  }, [isFormModalClosing]);
+
   function openCreateModal() {
+    setIsFormModalClosing(false);
     setEditingPromo(null);
     setFormValues(toFormValues(null));
     setFormError("");
@@ -103,6 +140,7 @@ export default function AdminPromoCodes() {
   }
 
   function openEditModal(promo) {
+    setIsFormModalClosing(false);
     setEditingPromo(promo);
     setFormValues(toFormValues(promo));
     setFormError("");
@@ -112,10 +150,7 @@ export default function AdminPromoCodes() {
   function closeModal() {
     if (saving) return;
 
-    setIsModalOpen(false);
-    setEditingPromo(null);
-    setFormValues(toFormValues(null));
-    setFormError("");
+    setIsFormModalClosing(true);
   }
 
   function onInputChange(event) {
@@ -179,21 +214,32 @@ export default function AdminPromoCodes() {
     }
   }
 
-  async function onDelete(promo) {
-    const shouldDelete = window.confirm(
-      `Delete promo code "${promo.code}"? This action cannot be undone.`,
-    );
+  function openDeleteDialog(promo) {
+    setPromoToDelete(promo);
+    setIsDeleteDialogClosing(false);
+    setError("");
+  }
 
-    if (!shouldDelete) return;
+  function closeDeleteDialog(force = false) {
+    if (deletingPromo && !force) return;
+    setIsDeleteDialogClosing(true);
+  }
 
-    setActionLoadingId(promo.id);
+  async function onConfirmDeletePromo() {
+    if (!promoToDelete?.id) return;
+
+    setDeletingPromo(true);
+    setActionLoadingId(promoToDelete.id);
     setError("");
 
     try {
-      const res = await fetch(apiUrl(`/api/admin/promo-codes/${promo.id}`), {
-        method: "DELETE",
-        credentials: "include",
-      });
+      const res = await fetch(
+        apiUrl(`/api/admin/promo-codes/${promoToDelete.id}`),
+        {
+          method: "DELETE",
+          credentials: "include",
+        },
+      );
 
       if (!res.ok && res.status !== 204) {
         const data = await res.json().catch(() => null);
@@ -201,21 +247,24 @@ export default function AdminPromoCodes() {
       }
 
       await loadPromos();
+      closeDeleteDialog(true);
     } catch (err) {
+      closeDeleteDialog(true);
       setError(err.message || "Could not delete promo code");
     } finally {
+      setDeletingPromo(false);
       setActionLoadingId("");
     }
   }
 
   return (
-    <section>
-      <header className="mb-7 flex flex-wrap items-start justify-between gap-4">
+    <section className="min-w-0">
+      <header className="mb-6 flex flex-col gap-4 sm:mb-7 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-4xl font-semibold tracking-tight text-slate-900">
+          <h2 className="text-[24px] font-semibold tracking-tight text-slate-900 sm:text-[28px]">
             Promo Codes
           </h2>
-          <p className="mt-2 text-lg text-slate-500">
+          <p className="mt-2 text-sm text-slate-500 sm:text-base">
             Manage discount codes and promotions
           </p>
         </div>
@@ -223,17 +272,18 @@ export default function AdminPromoCodes() {
         <button
           type="button"
           onClick={openCreateModal}
-          className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-[#ff3b92] to-[#8b5cf6] px-5 py-3 text-base font-semibold text-white shadow-sm transition hover:cursor-pointer hover:brightness-105"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-[#ff3b92] via-[#c44bc4] to-[#8b5cf6] px-6 py-3 text-[13px] font-semibold text-white shadow-sm transition hover:cursor-pointer hover:bg-linear-to-r hover:from-[#e50079] hover:via-[#c237be] hover:to-[#9b16f7] sm:w-auto"
         >
           <Plus size={16} />
           Create Promo Code
         </button>
       </header>
 
-      <div className="rounded-2xl border border-slate-200 bg-white">
-        {error && <p className="px-5 pt-5 text-sm text-red-600">{error}</p>}
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+        {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
-        <div className="overflow-x-auto p-5">
+        {/* Desktop table */}
+        <div className="admin-promos-table overflow-x-auto">
           <table className="min-w-full border-separate border-spacing-0 text-left">
             <thead>
               <tr>
@@ -287,15 +337,19 @@ export default function AdminPromoCodes() {
                     <td className="border-b border-slate-200 px-3 py-3 text-sm font-semibold text-slate-800">
                       {promo.code}
                     </td>
+
                     <td className="border-b border-slate-200 px-3 py-3 text-sm text-slate-700">
                       {Number(promo.discountPercent || 0).toFixed(0)}%
                     </td>
+
                     <td className="border-b border-slate-200 px-3 py-3 text-sm text-slate-600">
                       {formatDateDisplay(promo.startDate)}
                     </td>
+
                     <td className="border-b border-slate-200 px-3 py-3 text-sm text-slate-600">
                       {formatDateDisplay(promo.endDate)}
                     </td>
+
                     <td className="border-b border-slate-200 px-3 py-3 text-sm">
                       <span
                         className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${formatPromoStatus(
@@ -305,6 +359,7 @@ export default function AdminPromoCodes() {
                         {promo.status}
                       </span>
                     </td>
+
                     <td className="border-b border-slate-200 px-3 py-3">
                       <div className="flex items-center justify-end gap-2">
                         <button
@@ -316,9 +371,10 @@ export default function AdminPromoCodes() {
                         >
                           <Pencil size={16} />
                         </button>
+
                         <button
                           type="button"
-                          onClick={() => onDelete(promo)}
+                          onClick={() => openDeleteDialog(promo)}
                           disabled={actionLoadingId === promo.id}
                           className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-rose-200 bg-white text-rose-600 transition hover:cursor-pointer hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
                           aria-label={`Delete ${promo.code}`}
@@ -332,14 +388,105 @@ export default function AdminPromoCodes() {
             </tbody>
           </table>
         </div>
+
+        {/* Mobile / small tablet cards */}
+        <div className="admin-promos-cards">
+          {loading && (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+              Loading promo codes...
+            </div>
+          )}
+
+          {hasNoData && (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+              No promo codes found.
+            </div>
+          )}
+
+          {!loading &&
+            items.map((promo) => (
+              <article
+                key={promo.id}
+                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-lg font-semibold tracking-tight text-slate-900">
+                      {promo.code}
+                    </h3>
+
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${formatPromoStatus(
+                          promo.status,
+                        )}`}
+                      >
+                        {promo.status}
+                      </span>
+
+                      <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                        {Number(promo.discountPercent || 0).toFixed(0)}% OFF
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => openEditModal(promo)}
+                      disabled={actionLoadingId === promo.id}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      aria-label={`Edit ${promo.code}`}
+                    >
+                      <Pencil size={15} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => openDeleteDialog(promo)}
+                      disabled={actionLoadingId === promo.id}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-rose-200 bg-white text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      aria-label={`Delete ${promo.code}`}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-xl bg-slate-50 px-3 py-2">
+                    <div className="text-slate-500">Start Date</div>
+                    <div className="mt-1 font-semibold text-slate-900">
+                      {formatDateDisplay(promo.startDate)}
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl bg-slate-50 px-3 py-2">
+                    <div className="text-slate-500">End Date</div>
+                    <div className="mt-1 font-semibold text-slate-900">
+                      {formatDateDisplay(promo.endDate)}
+                    </div>
+                  </div>
+                </div>
+              </article>
+            ))}
+        </div>
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4">
-          <div className="w-full max-w-xl rounded-3xl border border-slate-200 bg-white shadow-2xl">
-            <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
+        <div
+          className={`admin-page-modal-backdrop fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-slate-950/30 p-0 sm:items-center sm:p-4 ${
+            isFormModalClosing ? "closing" : ""
+          }`}
+        >
+          <div
+            className={`admin-page-modal h-full max-h-[calc(100dvh-4rem)] w-full max-w-xl overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-2xl sm:h-auto sm:max-h-[92dvh] sm:rounded-3xl ${
+              isFormModalClosing ? "closing" : ""
+            }`}
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-4 py-4 sm:px-6 sm:py-5">
               <div>
-                <h3 className="text-2xl font-semibold tracking-tight text-slate-900">
+                <h3 className="text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">
                   {editingPromo ? "Edit Promo Code" : "Create Promo Code"}
                 </h3>
                 <p className="mt-1 text-sm text-slate-500">
@@ -352,14 +499,17 @@ export default function AdminPromoCodes() {
               <button
                 type="button"
                 onClick={closeModal}
-                className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition hover:cursor-pointer hover:bg-slate-100"
+                className="rounded-xl bg-white p-2 text-slate-500 transition hover:cursor-pointer hover:bg-slate-100"
                 aria-label="Close modal"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={onSubmit} className="space-y-4 p-6">
+            <form
+              onSubmit={onSubmit}
+              className="max-h-[calc(92dvh-88px)] space-y-4 overflow-y-auto p-4 sm:p-6"
+            >
               <label className="block space-y-1">
                 <span className="text-sm font-medium text-slate-700">
                   Code *
@@ -390,7 +540,7 @@ export default function AdminPromoCodes() {
                 />
               </label>
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <label className="block space-y-1">
                   <span className="text-sm font-medium text-slate-700">
                     Start Date *
@@ -433,24 +583,101 @@ export default function AdminPromoCodes() {
 
               {formError && <p className="text-sm text-red-600">{formError}</p>}
 
-              <div className="flex items-center justify-end gap-2 pt-2">
+              <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:items-center sm:justify-end">
                 <button
                   type="button"
                   onClick={closeModal}
                   disabled={saving}
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:cursor-pointer hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 transition hover:cursor-pointer hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                 >
                   Cancel
                 </button>
+
                 <button
                   type="submit"
                   disabled={saving}
-                  className="rounded-xl bg-linear-to-r from-[#ff3b92] to-[#8b5cf6] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:cursor-pointer hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="w-full rounded-xl bg-linear-to-r from-[#ff3b92] via-[#c44bc4] to-[#8b5cf6] px-4 py-2.5 text-[13px] font-semibold text-white shadow-sm transition hover:cursor-pointer hover:bg-linear-to-r hover:from-[#e50079] hover:via-[#c237be] hover:to-[#9b16f7] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                 >
                   {saving ? "Saving..." : editingPromo ? "Update" : "Create"}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {promoToDelete && (
+        <div
+          className={`admin-delete-modal-backdrop${
+            isDeleteDialogClosing ? " closing" : ""
+          }`}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !deletingPromo) {
+              closeDeleteDialog();
+            }
+          }}
+        >
+          <div
+            className={`admin-delete-modal${
+              isDeleteDialogClosing ? " closing" : ""
+            }`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-promo-title"
+          >
+            <button
+              type="button"
+              className="admin-modal-close"
+              aria-label="Close dialog"
+              onClick={() => closeDeleteDialog()}
+              disabled={deletingPromo}
+            >
+              <X size={18} />
+            </button>
+
+            <div className="admin-modal-title" id="delete-promo-title">
+              <AlertTriangle size={20} />
+              <span>Delete Promo Code</span>
+            </div>
+
+            <p className="admin-modal-desc">
+              Are you sure you want to delete promo code{" "}
+              <strong>{promoToDelete.code}</strong>? This action is permanent
+              and cannot be undone.
+            </p>
+
+            <p className="admin-modal-list-title">
+              This will permanently delete:
+            </p>
+
+            <ul className="admin-modal-list">
+              <li>The promo code from your admin panel</li>
+              <li>Its discount percentage and date range</li>
+              <li>Its availability at checkout</li>
+            </ul>
+
+            <div className="admin-modal-actions">
+              <button
+                type="button"
+                className="admin-modal-cancel"
+                onClick={() => closeDeleteDialog()}
+                disabled={deletingPromo}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className="admin-modal-confirm"
+                onClick={onConfirmDeletePromo}
+                disabled={deletingPromo}
+              >
+                <Trash2 size={15} />
+                <span>
+                  {deletingPromo ? "Deleting..." : "Yes, Delete Promo Code"}
+                </span>
+              </button>
+            </div>
           </div>
         </div>
       )}

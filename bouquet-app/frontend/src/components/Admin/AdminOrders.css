@@ -1,0 +1,30 @@
+.admin-orders-table {
+  display: block;
+}
+
+.admin-orders-cards {
+  display: none;
+}
+
+/* Telefon + tabletă mică */
+@media (max-width: 1023px) {
+  .admin-orders-table {
+    display: none;
+  }
+
+  .admin-orders-cards {
+    display: grid;
+    gap: 12px;
+  }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+  .admin-orders-table {
+    display: block;
+  }
+
+  .admin-orders-cards {
+    display: none;
+  }
+}

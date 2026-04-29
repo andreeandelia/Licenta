@@ -103,11 +103,12 @@ model LineOrder {
 }
 
 model Bouquet {
-  id        String        @id @default(uuid())
-  price     Float
-  items     ItemBouquet[] @relation("BouquetItems")
-  lineOrder LineOrder[]
-  cartItems CartItems[]
+  id                  String        @id @default(uuid())
+  price               Float
+  greetingCardMessage String?
+  items               ItemBouquet[] @relation("BouquetItems")
+  lineOrder           LineOrder[]
+  cartItems           CartItems[]
 }
 
 model CartItems {

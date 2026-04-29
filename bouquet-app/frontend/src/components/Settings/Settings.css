@@ -1,3 +1,8 @@
+.settings-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #f7e8f1 0%, #ffffff 100%);
+}
+
 .settings-wrap {
   max-width: 1400px;
   margin: 0 auto;
@@ -8,16 +13,12 @@
   margin: 0;
   color: #111827;
   font-size: 28px;
-}
-
-.settings-head p {
-  margin: 8px 0 22px;
-  color: #64748b;
-  font-size: 18px;
-  margin-bottom: 16px;
+  font-weight: 500;
+  line-height: 1.2;
 }
 
 .settings-card {
+  margin-top: 16px;
   background: #ffffff;
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 14px;
@@ -35,7 +36,7 @@
 .settings-subtitle {
   margin: 6px 0 22px;
   color: #64748b;
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .settings-grid {
@@ -125,10 +126,11 @@
   border-radius: 10px;
   background: linear-gradient(90deg, #ff3b92 0%, #8b5cf6 100%);
   color: #fff;
-  padding: 11px 16px;
-  font-size: 16px;
+  padding: 12px 22px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .settings-save:hover:not(:disabled) {
@@ -160,6 +162,245 @@
   gap: 16px;
 }
 
+.settings-danger-zone {
+  border-color: rgba(220, 38, 38, 0.2);
+}
+
+.settings-danger-zone h2 {
+  color: #dc2626;
+}
+
+.danger-box {
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.danger-copy {
+  min-width: 0;
+}
+
+.danger-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #991b1b;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+.danger-copy p {
+  margin: 8px 0 0;
+  color: #dc2626;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.danger-delete-btn {
+  border: 0;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 188px;
+  padding: 12px 18px;
+  background: #e11d48;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.danger-delete-btn:hover {
+  background: #be123c;
+}
+
+.settings-delete-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  background: rgba(17, 24, 39, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  animation: settingsBackdropIn 0.2s ease-out;
+}
+
+.settings-delete-modal-backdrop.closing {
+  animation: settingsBackdropOut 0.18s ease-in forwards;
+}
+
+.settings-delete-modal {
+  position: relative;
+  width: min(100%, 560px);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.3);
+  padding: 22px 24px 20px;
+  transform-origin: top center;
+  animation: settingsModalIn 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, opacity;
+}
+
+.settings-delete-modal.closing {
+  animation: settingsModalOut 0.18s ease-in forwards;
+}
+
+@keyframes settingsBackdropIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes settingsBackdropOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes settingsModalIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes settingsModalOut {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-delete-modal-backdrop,
+  .settings-delete-modal {
+    animation: none;
+  }
+}
+
+.settings-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  border: 0;
+  background: #fff;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 12px;
+  transition: all 0.15s ease;
+}
+
+.settings-modal-close:hover {
+  background: #f1f5f9;
+}
+
+.settings-modal-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #e11d48;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.settings-modal-desc {
+  margin: 10px 0 22px;
+  color: #4b5563;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.settings-modal-list-title {
+  margin: 0;
+  color: #111827;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.settings-modal-list {
+  margin: 10px 0 24px;
+  padding-left: 24px;
+  color: #4b5563;
+  font-size: 14px;
+  line-height: 1.5;
+  list-style: disc;
+  list-style-position: outside;
+}
+
+.settings-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.settings-modal-cancel,
+.settings-modal-confirm {
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  height: 42px;
+  padding: 0 18px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.settings-modal-cancel {
+  background: #ffffff;
+  color: #374151;
+}
+
+.settings-modal-cancel:hover:not(:disabled) {
+  background: #f9fafb;
+}
+
+.settings-modal-confirm {
+  border-color: #e11d48;
+  background: #e11d48;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-modal-confirm:hover:not(:disabled) {
+  background: #be123c;
+  border-color: #be123c;
+}
+
+.settings-modal-cancel:disabled,
+.settings-modal-confirm:disabled,
+.danger-delete-btn:disabled,
+.settings-modal-close:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .activity-card {
   display: flex;
   align-items: center;
@@ -169,6 +410,7 @@
   background: #ffffff;
   padding: 16px;
   text-decoration: none;
+  transition: all 0.2s ease;
 }
 
 .activity-card:hover {
@@ -210,6 +452,39 @@
     grid-template-columns: 1fr;
   }
 
+  .danger-box {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .danger-delete-btn {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .settings-delete-modal {
+    width: min(100%, 560px);
+    padding: 20px 18px;
+  }
+
+  .settings-modal-title {
+    font-size: 18px;
+  }
+
+  .settings-modal-desc {
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  .settings-modal-list-title {
+    font-size: 15px;
+  }
+
+  .settings-modal-list {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
   .settings-head h1 {
     font-size: 28px;
   }
@@ -225,5 +500,17 @@
 
   .activity-count {
     font-size: 29px;
+  }
+}
+
+@media (max-width: 640px) {
+  .settings-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .settings-modal-cancel,
+  .settings-modal-confirm {
+    width: 100%;
+    justify-content: center;
   }
 }

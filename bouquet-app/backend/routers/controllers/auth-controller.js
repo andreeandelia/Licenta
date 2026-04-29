@@ -554,4 +554,116 @@ function logout(req, res) {
     return res.json({ ok: true });
 }
 
-export { register, verify, login, loginWithGoogle, forgotPassword, resetPassword, me, updateProfile, logout };
+async function deleteAccount(req, res, next) {
+    try {
+        const userId = String(req.userId || '').trim();
+        if (!userId) {
+            return res.status(401).json({ error: 'Authentication required' });
+        }
+
+        const userExists = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { id: true },
+        });
+
+        if (!userExists) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        await prisma.$transaction(async (tx) => {
+            const [orders, orderLines, cartItems] = await Promise.all([
+                tx.order.findMany({
+                    where: { userId },
+                    select: { id: true },
+                }),
+                tx.lineOrder.findMany({
+                    where: {
+                        order: {
+                            userId,
+                        },
+                    },
+                    select: { bouquetId: true },
+                }),
+                tx.cartItems.findMany({
+                    where: { userId },
+                    select: { bouquetId: true },
+                }),
+            ]);
+
+            const orderIds = orders.map((entry) => entry.id);
+            const candidateBouquetIds = [...new Set([
+                ...orderLines.map((entry) => entry.bouquetId),
+                ...cartItems.map((entry) => entry.bouquetId),
+            ])];
+
+            if (orderIds.length > 0) {
+                await tx.lineOrder.deleteMany({
+                    where: {
+                        orderId: {
+                            in: orderIds,
+                        },
+                    },
+                });
+            }
+
+            await tx.cartItems.deleteMany({ where: { userId } });
+            await tx.wishlistItem.deleteMany({ where: { userId } });
+            await tx.address.deleteMany({ where: { userId } });
+
+            if (orderIds.length > 0) {
+                await tx.order.deleteMany({ where: { id: { in: orderIds } } });
+            }
+
+            if (candidateBouquetIds.length > 0) {
+                const inUseBouquets = await tx.bouquet.findMany({
+                    where: {
+                        id: { in: candidateBouquetIds },
+                        OR: [
+                            { lineOrder: { some: {} } },
+                            { cartItems: { some: {} } },
+                        ],
+                    },
+                    select: { id: true },
+                });
+
+                const inUseSet = new Set(inUseBouquets.map((entry) => entry.id));
+                const orphanBouquetIds = candidateBouquetIds.filter((id) => !inUseSet.has(id));
+
+                if (orphanBouquetIds.length > 0) {
+                    await tx.itemBouquet.deleteMany({
+                        where: {
+                            bouquetId: {
+                                in: orphanBouquetIds,
+                            },
+                        },
+                    });
+
+                    await tx.bouquet.deleteMany({
+                        where: {
+                            id: {
+                                in: orphanBouquetIds,
+                            },
+                        },
+                    });
+                }
+            }
+
+            await tx.user.delete({
+                where: { id: userId },
+            });
+        });
+
+        res.clearCookie('access_token', {
+            httpOnly: true,
+            sameSite: 'lax',
+            secure: false,
+        });
+
+        return res.status(200).json({ ok: true });
+    }
+    catch (err) {
+        next(err);
+    }
+}
+
+export { register, verify, login, loginWithGoogle, forgotPassword, resetPassword, me, updateProfile, logout, deleteAccount };

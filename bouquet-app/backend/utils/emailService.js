@@ -163,4 +163,84 @@ async function sendPasswordResetEmail(to, token, userName) {
     return result;
 }
 
-export { sendVerificationEmail, sendPasswordResetEmail };
+const ORDER_STATUS_EMAIL_CONTENT = {
+    CONFIRMED: {
+        subject: 'Your order has been confirmed',
+        heading: 'Order confirmed',
+        text: 'We have confirmed your order and will start preparing your bouquet shortly.',
+    },
+    IN_PREPARATION: {
+        subject: 'Your order is in preparation',
+        heading: 'We are preparing your order',
+        text: 'Our florists are currently crafting your bouquet with attention to every detail.',
+    },
+    IN_DELIVERY: {
+        subject: 'Your order is out for delivery',
+        heading: 'Your order is on the way',
+        text: 'Your courier is on the way and your order will arrive at your delivery address soon.',
+    },
+    DELIVERED: {
+        subject: 'Your order has been delivered',
+        heading: 'Order delivered',
+        text: 'Your order was delivered successfully. Thank you for choosing Bloomery!',
+    },
+};
+
+async function sendOrderStatusEmail(to, orderId, orderStatus, customerName) {
+    const content = ORDER_STATUS_EMAIL_CONTENT[String(orderStatus || '').toUpperCase()];
+    if (!content) {
+        return null;
+    }
+
+    const mailer = getTransporter();
+    const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER;
+    const normalizedName = String(customerName || '').trim();
+    const safeName = escapeHtml(normalizedName || 'there');
+    const safeOrderId = escapeHtml(String(orderId || ''));
+
+    const html = `
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0;padding:0;background-color:transparent;">
+                    <tr>
+                        <td align="center" style="padding:24px 12px;">
+                            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="640" style="width:100%;max-width:640px;background-color:#ffffff;border:1px solid #f2d6e8;border-radius:22px;overflow:hidden;box-shadow:0 8px 24px rgba(229,0,121,0.08);">
+                                <tr>
+                                    <td style="background:#e50079 !important;padding:20px 24px;">
+                                        <p style="margin:0;font-family:Arial,sans-serif;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#ffffff;">Bloomery</p>
+                                        <h1 style="margin:8px 0 0 0;font-family:Arial,sans-serif;font-size:24px;line-height:1.3;color:#ffffff;">${content.heading}</h1>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:24px;font-family:Arial,sans-serif;color:#111827;line-height:1.65;">
+                                        <p style="margin:0 0 8px 0;font-size:15px;color:#111827;font-weight:700;">Hi ${safeName},</p>
+                                        <p style="margin:0 0 14px 0;font-size:15px;color:#111827;">${content.text}</p>
+                                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#f7edf4;border:1px solid #f2d6e8;border-radius:12px;">
+                                            <tr>
+                                                <td style="padding:12px 14px;font-family:Arial,sans-serif;font-size:13px;color:#6b7280;">
+                                                    Order number: ${safeOrderId}<br />
+                                                    Current status: ${escapeHtml(String(orderStatus || ''))}
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+        `;
+
+    const subjectWithOrderNumber = `${content.subject}`;
+    const text = `${content.heading}\n\nHi ${normalizedName || 'there'},\n\n${content.text}\n\nOrder number: ${String(orderId || '')}\nCurrent status: ${String(orderStatus || '')}`;
+
+    const result = await mailer.sendMail({
+        from: fromEmail,
+        to,
+        subject: subjectWithOrderNumber,
+        text,
+        html,
+    });
+
+    return result;
+}
+
+export { sendVerificationEmail, sendPasswordResetEmail, sendOrderStatusEmail };

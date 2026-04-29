@@ -5,6 +5,7 @@
 }
 
 .cat-content {
+  width: 100%;
   max-width: 1400px;
   margin: 0 auto;
 }
@@ -26,7 +27,7 @@
 
 .cat-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 22px;
 }
 
@@ -70,7 +71,7 @@
   font-weight: 700;
   font-size: 14px;
   color: #111827;
-  margin-bottom: 3px;
+  margin: 0 0 3px;
 }
 
 .card-subtitle {
@@ -80,12 +81,58 @@
   color: #6b7280;
 }
 
-/* responsive */
+/* Tablet */
 @media (max-width: 980px) {
   .cat-grid {
     grid-template-columns: 1fr;
+    max-width: 560px;
+    margin: 0 auto;
   }
+
   .cat-image {
-    height: 220px;
+    height: 240px;
+  }
+}
+
+/* Telefon */
+@media (max-width: 640px) {
+  .cat {
+    padding: 46px 18px 56px;
+  }
+
+  .cat-title {
+    font-size: 20px;
+  }
+
+  .cat-subtitle {
+    font-size: 12px;
+    margin-bottom: 22px;
+  }
+
+  .cat-grid {
+    gap: 16px;
+  }
+
+  .cat-imageWrap {
+    padding: 14px 14px 0;
+  }
+
+  .cat-image {
+    height: 190px;
+  }
+
+  .cat-body {
+    padding: 12px 14px 16px;
+  }
+}
+
+/* Telefoane mici */
+@media (max-width: 380px) {
+  .cat {
+    padding: 40px 14px 48px;
+  }
+
+  .cat-image {
+    height: 170px;
   }
 }

@@ -1,0 +1,30 @@
+.admin-products-table {
+  display: block;
+}
+
+.admin-products-cards {
+  display: none;
+}
+
+/* Telefon + tabletă mică: carduri */
+@media (max-width: 1023px) {
+  .admin-products-table {
+    display: none;
+  }
+
+  .admin-products-cards {
+    display: grid;
+    gap: 12px;
+  }
+}
+
+/* Desktop: tabel */
+@media (min-width: 1024px) {
+  .admin-products-table {
+    display: block;
+  }
+
+  .admin-products-cards {
+    display: none;
+  }
+}

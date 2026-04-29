@@ -135,12 +135,17 @@ export default function AuthForm({ initialMode = "login" }) {
 
         googleButtonRef.current.innerHTML = "";
 
+        const googleButtonWidth = Math.min(
+          360,
+          Math.max(240, Math.floor(googleButtonRef.current.offsetWidth || 320)),
+        );
+
         window.google.accounts.id.renderButton(googleButtonRef.current, {
           theme: "outline",
           size: "large",
           text: "continue_with",
           shape: "pill",
-          width: 360,
+          width: googleButtonWidth,
         });
       } catch (err) {
         if (!cancelled) {

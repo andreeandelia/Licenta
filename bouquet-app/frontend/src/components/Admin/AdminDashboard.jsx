@@ -1,6 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { DollarSign, Package, Users, WalletCards } from "lucide-react";
 import { apiUrl } from "../../config/global";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+} from "recharts";
 
 const defaultData = {
   summary: {
@@ -21,6 +32,12 @@ const defaultData = {
     { label: "Apr", revenue: 0 },
     { label: "May", revenue: 0 },
     { label: "Jun", revenue: 0 },
+    { label: "Jul", revenue: 0 },
+    { label: "Aug", revenue: 0 },
+    { label: "Sep", revenue: 0 },
+    { label: "Oct", revenue: 0 },
+    { label: "Nov", revenue: 0 },
+    { label: "Dec", revenue: 0 },
   ],
   salesByCategory: [
     { label: "Flowers", revenue: 0 },
@@ -42,6 +59,36 @@ function formatPercent(value) {
   const number = Number(value || 0);
   const sign = number >= 0 ? "+" : "";
   return `${sign}${number.toFixed(1)}% from last month`;
+}
+
+function SalesTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+
+  const value = Number(payload[0].value || 0);
+
+  return (
+    <div className="border border-slate-200 bg-white px-3 py-2 shadow-sm">
+      <div className="text-sm font-medium text-slate-900">{label}</div>
+      <div className="mt-3 text-sm text-pink-500">
+        Sales (RON): {value.toLocaleString("ro-RO")}
+      </div>
+    </div>
+  );
+}
+
+function CategoryTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+
+  const value = Number(payload[0].value || 0);
+
+  return (
+    <div className="border border-slate-200 bg-white px-3 py-2 shadow-sm">
+      <div className="text-sm font-medium text-slate-900">{label}</div>
+      <div className="mt-3 text-sm text-pink-500">
+        Revenue (RON): {value.toLocaleString("ro-RO")}
+      </div>
+    </div>
+  );
 }
 
 export default function AdminDashboard() {
@@ -141,6 +188,7 @@ export default function AdminDashboard() {
       1,
       ...trend.map((item) => Number(item.revenue || 0)),
     );
+    const yAxisMax = maxRevenue * 1.25;
 
     return trend.map((item, index) => {
       const x =
@@ -148,7 +196,7 @@ export default function AdminDashboard() {
           ? chartLeft + chartWidth / 2
           : chartLeft + (index * chartWidth) / (trend.length - 1);
       const y =
-        chartBottom - (Number(item.revenue || 0) / maxRevenue) * chartHeight;
+        chartBottom - (Number(item.revenue || 0) / yAxisMax) * chartHeight;
 
       return {
         x,
@@ -169,10 +217,38 @@ export default function AdminDashboard() {
     ...categoryData.map((item) => Number(item.revenue || 0)),
   );
 
+  const categoryYAxisStep = 800;
+
+  const categoryYAxisMax = Math.max(
+    3200,
+    Math.ceil(maxCategoryValue / categoryYAxisStep) * categoryYAxisStep,
+  );
+
+  const categoryYAxisTicks = Array.from(
+    { length: categoryYAxisMax / categoryYAxisStep + 1 },
+    (_, index) => index * categoryYAxisStep,
+  );
+
+  const maxTrendRevenue = Math.max(
+    1,
+    ...dashboardData.salesTrend.map((item) => Number(item.revenue || 0)),
+  );
+
+  const yAxisStep = 2000;
+  const yAxisMax = Math.max(
+    8000,
+    Math.ceil(maxTrendRevenue / yAxisStep) * yAxisStep,
+  );
+
+  const yAxisTicks = Array.from(
+    { length: yAxisMax / yAxisStep + 1 },
+    (_, index) => index * yAxisStep,
+  );
+
   return (
     <section className="w-full min-w-0">
       <header className="mb-6">
-        <h2 className="text-4xl font-semibold tracking-tight text-slate-900">
+        <h2 className="text-[28px] font-semibold tracking-tight text-slate-900">
           Dashboard Overview
         </h2>
         <p className="mt-2 text-base text-slate-500">
@@ -184,7 +260,7 @@ export default function AdminDashboard() {
       </header>
 
       {/* KPI ROW */}
-      <div className="flex flex-wrap gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((item) => {
           const Icon = item.icon;
           const isAvgCard = item.title === "Avg Order Value";
@@ -193,10 +269,6 @@ export default function AdminDashboard() {
             <article
               key={item.title}
               className="min-w-0 rounded-2xl border border-slate-200 bg-white px-4 py-4"
-              style={{
-                flex: "1 1 220px",
-                minWidth: "220px",
-              }}
             >
               <div className="flex items-start justify-between gap-3 text-slate-500">
                 <span className="text-sm font-medium text-slate-700">
@@ -228,83 +300,67 @@ export default function AdminDashboard() {
       </div>
 
       {/* CHARTS ROW */}
-      <div className="mt-5 flex flex-wrap gap-5">
-        <article
-          className="min-w-0 rounded-2xl border border-slate-200 bg-white p-6"
-          style={{
-            flex: "1.6 1 620px",
-            minWidth: "620px",
-          }}
-        >
-          <h3 className="text-2xl font-semibold tracking-tight text-slate-900">
+      <div className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <article className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 sm:p-6">
+          <h3 className="text-xl font-semibold tracking-tight text-slate-900">
             Sales Trend
           </h3>
 
-          <div className="mt-6">
-            <svg viewBox="0 0 460 210" className="h-70 w-full">
-              {[20, 60, 100, 140, 180].map((y) => (
-                <line
-                  key={y}
-                  x1="0"
-                  y1={y}
-                  x2="440"
-                  y2={y}
-                  className="text-slate-200"
-                  stroke="currentColor"
-                  strokeDasharray="4 4"
-                  strokeWidth="1"
+          <div className="mt-5 h-64 w-full sm:mt-6 sm:h-70">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={dashboardData.salesTrend}
+                margin={{ top: 20, right: 28, left: 8, bottom: 0 }}
+              >
+                <CartesianGrid
+                  stroke="#e5e7eb"
+                  strokeDasharray="3 3"
+                  vertical
+                  horizontal
                 />
-              ))}
 
-              {[88, 176, 264, 352, 440].map((x) => (
-                <line
-                  key={x}
-                  x1={x}
-                  y1="20"
-                  x2={x}
-                  y2="180"
-                  className="text-slate-200"
-                  stroke="currentColor"
-                  strokeDasharray="4 4"
-                  strokeWidth="1"
+                <XAxis
+                  dataKey="label"
+                  tick={{ fill: "#64748b", fontSize: 14 }}
+                  axisLine={{ stroke: "#94a3b8" }}
+                  tickLine={false}
                 />
-              ))}
 
-              <polyline
-                fill="none"
-                className="text-pink-500"
-                stroke="currentColor"
-                strokeWidth="3"
-                points={linePath}
-              />
-
-              {chartPoints.map((point) => (
-                <circle
-                  key={point.label}
-                  cx={point.x}
-                  cy={point.y}
-                  r="4"
-                  fill="white"
-                  className="text-pink-500"
-                  stroke="currentColor"
-                  strokeWidth="2"
+                <YAxis
+                  domain={[0, yAxisMax]}
+                  ticks={yAxisTicks}
+                  width={52}
+                  tick={{ fill: "#64748b", fontSize: 14 }}
+                  axisLine={{ stroke: "#94a3b8" }}
+                  tickLine={false}
                 />
-              ))}
 
-              {chartPoints.map((point) => (
-                <text
-                  key={`label-${point.label}`}
-                  x={point.x}
-                  y="198"
-                  textAnchor="middle"
-                  className="text-slate-500"
-                  fill="currentColor"
-                  fontSize="14"
-                >
-                  {point.label}
-                </text>
-              ))}
-            </svg>
+                <Tooltip
+                  content={<SalesTooltip />}
+                  cursor={{ stroke: "#cbd5e1", strokeWidth: 1 }}
+                />
+
+                <Line
+                  type="monotone"
+                  dataKey="revenue"
+                  name="Sales (RON)"
+                  stroke="#ec4899"
+                  strokeWidth={2}
+                  dot={{
+                    r: 3,
+                    fill: "white",
+                    stroke: "#ec4899",
+                    strokeWidth: 2,
+                  }}
+                  activeDot={{
+                    r: 4,
+                    fill: "white",
+                    stroke: "#ec4899",
+                    strokeWidth: 2,
+                  }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
 
           <div className="mt-2 flex items-center justify-center gap-2 text-base font-medium text-pink-500">
@@ -313,39 +369,54 @@ export default function AdminDashboard() {
           </div>
         </article>
 
-        <article
-          className="min-w-0 rounded-2xl border border-slate-200 bg-white p-6"
-          style={{
-            flex: "1 1 380px",
-            minWidth: "380px",
-          }}
-        >
-          <h3 className="text-2xl font-semibold tracking-tight text-slate-900">
+        <article className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 sm:p-6">
+          <h3 className="text-xl font-semibold tracking-tight text-slate-900">
             Sales by Category
           </h3>
 
-          <div className="mt-8 flex h-70 items-end justify-around gap-4 border-b border-slate-200 px-2 pb-4">
-            {categoryData.map((item) => {
-              const height = Math.max(
-                (Number(item.revenue || 0) / maxCategoryValue) * 220,
-                28,
-              );
+          <div className="mt-5 h-64 w-full sm:mt-6 sm:h-70">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={categoryData}
+                margin={{ top: 20, right: 28, left: 8, bottom: 0 }}
+              >
+                <CartesianGrid
+                  stroke="#e5e7eb"
+                  strokeDasharray="3 3"
+                  vertical
+                  horizontal
+                />
 
-              return (
-                <div
-                  key={item.label}
-                  className="flex min-w-0 flex-1 flex-col items-center gap-3"
-                >
-                  <div
-                    className="w-full max-w-20 rounded-t-md bg-pink-500"
-                    style={{ height }}
-                  />
-                  <p className="text-center text-sm text-slate-600">
-                    {item.label}
-                  </p>
-                </div>
-              );
-            })}
+                <XAxis
+                  dataKey="label"
+                  tick={{ fill: "#64748b", fontSize: 14 }}
+                  axisLine={{ stroke: "#94a3b8" }}
+                  tickLine={false}
+                />
+
+                <YAxis
+                  domain={[0, categoryYAxisMax]}
+                  ticks={categoryYAxisTicks}
+                  width={52}
+                  tick={{ fill: "#64748b", fontSize: 14 }}
+                  axisLine={{ stroke: "#94a3b8" }}
+                  tickLine={false}
+                />
+
+                <Tooltip
+                  content={<CategoryTooltip />}
+                  cursor={{ fill: "rgba(236, 72, 153, 0.08)" }}
+                />
+
+                <Bar
+                  dataKey="revenue"
+                  name="Revenue (RON)"
+                  fill="#ec4899"
+                  radius={[3, 3, 0, 0]}
+                  maxBarSize={130}
+                />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
 
           <div className="mt-4 flex items-center justify-center gap-2 text-base font-medium text-pink-500">

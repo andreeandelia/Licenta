@@ -1,6 +1,8 @@
 import "./Footer.css";
 import { Link } from "react-router-dom";
 import { Mail, Phone, MapPin } from "lucide-react";
+import solOnlineImage from "../../assets/anpc-sol.avif";
+import anpcSalImage from "../../assets/anpc-sal.avif";
 
 export default function Footer() {
   return (
@@ -62,18 +64,60 @@ export default function Footer() {
           <div className="footer-contact">
             <div className="footer-contactRow">
               <Phone size={16} aria-hidden="true" />
-              <span>(+40) 123 456 789</span>
+              <span>
+                <a href="tel:+40123456789">(+40) 123 456 789</a>
+              </span>
             </div>
+
             <div className="footer-contactRow">
               <Mail size={16} aria-hidden="true" />
               <span>
-                <a href="mailto:hello@bloomery.ro">hello@bloomery.ro</a>
+                <a href="mailto:bloomery.app@gmail.com">
+                  bloomery.app@gmail.com
+                </a>
               </span>
             </div>
+
             <div className="footer-contactRow">
               <MapPin size={16} aria-hidden="true" />
-              <span>123 Flower St, Bucharest, Romania</span>
+              <span>
+                <a
+                  href="https://maps.google.com/?q=123+Flower+St,+Bucharest,+Romania"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  123 Flower St, Bucharest, Romania
+                </a>
+              </span>
             </div>
+          </div>
+
+          <div className="footer-contact-badges">
+            <a
+              href="https://consumer-redress.ec.europa.eu/site-relocation_en?event=main.home2.show&lng=RO"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Soluționarea online a litigiilor"
+            >
+              <img
+                src={solOnlineImage}
+                alt="Soluționarea online a litigiilor"
+                className="footer-contact-badge"
+              />
+            </a>
+
+            <a
+              href="https://anpc.ro/ce-este-sal/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Soluționarea alternativă a litigiilor"
+            >
+              <img
+                src={anpcSalImage}
+                alt="Soluționarea alternativă a litigiilor"
+                className="footer-contact-badge"
+              />
+            </a>
           </div>
         </div>
       </div>

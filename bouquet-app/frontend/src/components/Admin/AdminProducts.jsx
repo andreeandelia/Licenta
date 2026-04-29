@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { AlertTriangle, Pencil, Plus, Trash2, X } from "lucide-react";
 import { apiUrl, mediaUrl } from "../../config/global";
+import "./AdminConfirmDialog.css";
+import "./AdminProducts.css";
 
 const initialFormState = {
   name: "",
@@ -89,15 +91,26 @@ export default function AdminProducts() {
   const [saving, setSaving] = useState(false);
   const imageInputRef = useRef(null);
 
+  const FORM_MODAL_ANIMATION_MS = 220;
+  const [isFormModalClosing, setIsFormModalClosing] = useState(false);
+
+  const DELETE_DIALOG_ANIMATION_MS = 220;
+
+  const [productToDelete, setProductToDelete] = useState(null);
+  const [isDeleteDialogClosing, setIsDeleteDialogClosing] = useState(false);
+  const [deletingProduct, setDeletingProduct] = useState(false);
+
   async function loadProducts(searchTerm = "", type = "ALL") {
     setLoading(true);
     setError("");
 
     try {
       const params = new URLSearchParams();
+
       if (searchTerm.trim()) {
         params.set("search", searchTerm.trim());
       }
+
       if (type !== "ALL") {
         params.set("type", type);
       }
@@ -140,6 +153,17 @@ export default function AdminProducts() {
     };
   }, [imagePreview]);
 
+  useEffect(() => {
+    if (!isDeleteDialogClosing) return;
+
+    const timer = setTimeout(() => {
+      setProductToDelete(null);
+      setIsDeleteDialogClosing(false);
+    }, DELETE_DIALOG_ANIMATION_MS);
+
+    return () => clearTimeout(timer);
+  }, [isDeleteDialogClosing]);
+
   const modalTitle = editingProduct ? "Edit Product" : "Add New Product";
   const submitLabel = editingProduct ? "Save Changes" : "Add Product";
 
@@ -151,6 +175,7 @@ export default function AdminProducts() {
     const source = editingProduct?.imageUrl || imagePreview;
     const cleanSource = String(source).split("?")[0];
     const parts = cleanSource.split("/");
+
     return parts[parts.length - 1] || "Selected image";
   }, [imageCleared, imageFile, imagePreview, editingProduct]);
 
@@ -164,8 +189,27 @@ export default function AdminProducts() {
     [loading, error, filteredItems.length],
   );
 
+  useEffect(() => {
+    if (!isFormModalClosing) return;
+
+    const timer = setTimeout(() => {
+      revokePreview(imagePreview);
+      setIsModalOpen(false);
+      setIsFormModalClosing(false);
+      setEditingProduct(null);
+      setFormValues(initialFormState);
+      setImageFile(null);
+      setImagePreview("");
+      setImageCleared(false);
+      setFormError("");
+    }, FORM_MODAL_ANIMATION_MS);
+
+    return () => clearTimeout(timer);
+  }, [isFormModalClosing, imagePreview]);
+
   function openCreateModal() {
     revokePreview(imagePreview);
+    setIsFormModalClosing(false);
     setEditingProduct(null);
     setFormValues(initialFormState);
     setImageFile(null);
@@ -177,6 +221,7 @@ export default function AdminProducts() {
 
   function openEditModal(product) {
     revokePreview(imagePreview);
+    setIsFormModalClosing(false);
     setEditingProduct(product);
     setFormValues(toFormValues(product));
     setImageFile(null);
@@ -188,18 +233,13 @@ export default function AdminProducts() {
 
   function closeModal() {
     if (saving) return;
-    revokePreview(imagePreview);
-    setIsModalOpen(false);
-    setEditingProduct(null);
-    setFormValues(initialFormState);
-    setImageFile(null);
-    setImagePreview("");
-    setImageCleared(false);
-    setFormError("");
+
+    setIsFormModalClosing(true);
   }
 
   function onInputChange(event) {
     const { name, value } = event.target;
+
     setFormValues((prev) => ({
       ...prev,
       [name]: value,
@@ -211,6 +251,7 @@ export default function AdminProducts() {
 
     if (!file) {
       setImageFile(null);
+
       if (editingProduct?.imageUrl) {
         setImagePreview(resolveProductImage(editingProduct.imageUrl));
         setImageCleared(false);
@@ -219,6 +260,7 @@ export default function AdminProducts() {
         setImagePreview("");
         setImageCleared(true);
       }
+
       return;
     }
 
@@ -285,6 +327,7 @@ export default function AdminProducts() {
       formData.append("stock", String(Number(formValues.stock)));
       formData.append("description", formValues.description.trim());
       formData.append("color", formValues.color || "");
+
       if (imageFile) {
         formData.append("image", imageFile);
       }
@@ -310,18 +353,31 @@ export default function AdminProducts() {
     }
   }
 
-  async function onDelete(product) {
-    const shouldDelete = window.confirm(
-      `Delete product "${product.name}"? This action cannot be undone.`,
-    );
+  function openDeleteDialog(product) {
+    setProductToDelete(product);
+    setIsDeleteDialogClosing(false);
+    setError("");
+  }
 
-    if (!shouldDelete) return;
+  function closeDeleteDialog(force = false) {
+    if (deletingProduct && !force) return;
+    setIsDeleteDialogClosing(true);
+  }
+
+  async function onConfirmDeleteProduct() {
+    if (!productToDelete?.id) return;
+
+    setDeletingProduct(true);
+    setError("");
 
     try {
-      const res = await fetch(apiUrl(`/api/admin/products/${product.id}`), {
-        method: "DELETE",
-        credentials: "include",
-      });
+      const res = await fetch(
+        apiUrl(`/api/admin/products/${productToDelete.id}`),
+        {
+          method: "DELETE",
+          credentials: "include",
+        },
+      );
 
       if (!res.ok) {
         const data = await res.json().catch(() => null);
@@ -329,19 +385,23 @@ export default function AdminProducts() {
       }
 
       await loadProducts(search, typeFilter);
+      closeDeleteDialog(true);
     } catch (err) {
+      closeDeleteDialog(true);
       setError(err.message || "Could not delete product");
+    } finally {
+      setDeletingProduct(false);
     }
   }
 
   return (
-    <section>
-      <header className="mb-7 flex flex-wrap items-start justify-between gap-4">
+    <section className="min-w-0">
+      <header className="mb-6 flex flex-col gap-4 sm:mb-7 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-4xl font-semibold tracking-tight text-slate-900">
+          <h2 className="text-[24px] font-semibold tracking-tight text-slate-900 sm:text-[28px]">
             Products Management
           </h2>
-          <p className="mt-2 text-lg text-slate-500">
+          <p className="mt-2 text-sm text-slate-500 sm:text-base">
             Manage your flower catalog, wrapping, and accessories
           </p>
         </div>
@@ -349,16 +409,16 @@ export default function AdminProducts() {
         <button
           type="button"
           onClick={openCreateModal}
-          className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-[#ff3b92] to-[#8b5cf6] px-5 py-3 text-base font-semibold text-white shadow-sm transition hover:cursor-pointer hover:brightness-105"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-[#ff3b92] via-[#c44bc4] to-[#8b5cf6] px-6 py-3 text-[13px] font-semibold text-white shadow-sm transition hover:cursor-pointer hover:bg-linear-to-r hover:from-[#e50079] hover:via-[#c237be] hover:to-[#9b16f7] sm:w-auto"
         >
           <Plus size={16} />
           Add Product
         </button>
       </header>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5">
-        <div className="mb-5 flex flex-wrap items-center gap-3">
-          <div className="relative min-w-0 flex-1">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative w-full min-w-0 flex-1">
             <input
               type="search"
               value={search}
@@ -387,7 +447,8 @@ export default function AdminProducts() {
 
         {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
-        <div className="overflow-x-auto">
+        {/* Desktop / tablet table */}
+        <div className="admin-products-table overflow-x-auto">
           <table className="min-w-full border-separate border-spacing-0 text-left">
             <thead>
               <tr>
@@ -445,20 +506,25 @@ export default function AdminProducts() {
                         className="h-12 w-12 rounded-md border border-slate-200 object-cover"
                       />
                     </td>
+
                     <td className="border-b border-slate-200 px-3 py-3 text-sm font-medium text-slate-800">
                       {product.name}
                     </td>
+
                     <td className="border-b border-slate-200 px-3 py-3 text-sm text-slate-600">
                       <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
                         {formatType(product.type)}
                       </span>
                     </td>
+
                     <td className="border-b border-slate-200 px-3 py-3 text-sm text-slate-700">
                       {formatPrice(product.price)}
                     </td>
+
                     <td className="border-b border-slate-200 px-3 py-3 text-sm text-slate-700">
                       {product.stock}
                     </td>
+
                     <td className="border-b border-slate-200 px-3 py-3">
                       <div className="flex items-center justify-end gap-2">
                         <button
@@ -469,9 +535,10 @@ export default function AdminProducts() {
                         >
                           <Pencil size={16} />
                         </button>
+
                         <button
                           type="button"
-                          onClick={() => onDelete(product)}
+                          onClick={() => openDeleteDialog(product)}
                           className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-rose-200 bg-white text-rose-600 transition hover:cursor-pointer hover:bg-rose-50"
                           aria-label={`Delete ${product.name}`}
                         >
@@ -484,216 +551,384 @@ export default function AdminProducts() {
             </tbody>
           </table>
         </div>
+
+        {/* Mobile cards */}
+        <div className="admin-products-cards">
+          {loading && (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+              Loading products...
+            </div>
+          )}
+
+          {hasNoData && (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+              No products found.
+            </div>
+          )}
+
+          {!loading &&
+            filteredItems.map((product) => (
+              <article
+                key={product.id}
+                className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
+              >
+                <div className="flex gap-3">
+                  <img
+                    src={resolveProductImage(product.imageUrl)}
+                    alt={product.name}
+                    className="h-20 w-20 shrink-0 rounded-xl border border-slate-200 object-cover"
+                  />
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h3 className="truncate text-sm font-semibold text-slate-900">
+                          {product.name}
+                        </h3>
+
+                        <span className="mt-1 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                          {formatType(product.type)}
+                        </span>
+                      </div>
+
+                      <div className="flex shrink-0 items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(product)}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100"
+                          aria-label={`Edit ${product.name}`}
+                        >
+                          <Pencil size={15} />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => openDeleteDialog(product)}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-rose-200 bg-white text-rose-600 transition hover:bg-rose-50"
+                          aria-label={`Delete ${product.name}`}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                      <div className="rounded-xl bg-slate-50 px-3 py-2">
+                        <div className="text-slate-500">Price</div>
+                        <div className="mt-1 font-semibold text-pink-600">
+                          {formatPrice(product.price)}
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl bg-slate-50 px-3 py-2">
+                        <div className="text-slate-500">Stock</div>
+                        <div className="mt-1 font-semibold text-slate-900">
+                          {product.stock}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            ))}
+        </div>
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/30 p-4">
-          <div className="w-full max-w-3xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
-            <div className="px-7 pt-6 pb-5">
-              <div className="mb-6 flex items-start justify-between gap-4">
-                <h3 className="text-4xl font-semibold tracking-tight text-slate-900">
+        <div
+          className={`admin-page-modal-backdrop fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-slate-950/30 p-0 sm:items-center sm:p-4
+        ${isFormModalClosing ? "closing" : ""}`}
+        >
+          <div
+            className={`h-full max-h-[calc(100dvh-4rem)] w-full max-w-3xl overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-2xl sm:h-auto sm:max-h-[92dvh] sm:rounded-3xl
+          ${isFormModalClosing ? "closing" : ""}`}
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-4 py-4 sm:px-6 sm:py-5">
+              <div>
+                <h3 className="text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">
                   {modalTitle}
                 </h3>
-
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="rounded-lg p-1 text-slate-400 transition hover:cursor-pointer hover:bg-slate-100 hover:text-slate-600"
-                  aria-label="Close form"
-                >
-                  <X size={24} />
-                </button>
+                <p className="mt-1 text-sm text-slate-500">
+                  {editingProduct
+                    ? "Update product details and inventory."
+                    : "Add a new product with image, stock, and pricing."}
+                </p>
               </div>
 
-              <form id="product-form" onSubmit={onSubmit} className="w-full">
-                <div className="flex flex-col gap-6 lg:flex-row">
-                  {/* LEFT */}
-                  <div className="min-w-0 flex-1 space-y-4">
+              <button
+                type="button"
+                onClick={closeModal}
+                className="rounded-xl bg-white p-2 text-slate-500 transition hover:cursor-pointer hover:bg-slate-100"
+                aria-label="Close form"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={onSubmit}
+              className="max-h-[calc(92dvh-92px)] space-y-4 overflow-y-auto p-4 sm:p-6"
+            >
+              <div className="flex flex-col gap-6 lg:flex-row">
+                <div className="min-w-0 flex-1 space-y-4">
+                  <label className="block space-y-1.5">
+                    <span className="text-base font-semibold text-slate-700">
+                      Product Name *
+                    </span>
+                    <input
+                      name="name"
+                      value={formValues.name}
+                      onChange={onInputChange}
+                      required
+                      className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-base text-slate-700 outline-none transition focus:border-slate-300 focus:bg-white"
+                    />
+                  </label>
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <label className="block space-y-1.5">
                       <span className="text-base font-semibold text-slate-700">
-                        Product Name *
+                        Type *
+                      </span>
+                      <select
+                        name="type"
+                        value={formValues.type}
+                        onChange={onInputChange}
+                        className="h-12 w-full appearance-none rounded-2xl border border-slate-200 bg-slate-50 px-4 text-base text-slate-700 outline-none transition focus:border-slate-300 focus:bg-white"
+                      >
+                        {productTypes.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="block space-y-1.5">
+                      <span className="text-base font-semibold text-slate-700">
+                        Color
+                      </span>
+                      <select
+                        name="color"
+                        value={formValues.color}
+                        onChange={onInputChange}
+                        className="h-12 w-full appearance-none rounded-2xl border border-slate-200 bg-slate-50 px-4 text-base text-slate-700 outline-none transition focus:border-slate-300 focus:bg-white"
+                      >
+                        {colorOptions.map((option) => (
+                          <option
+                            key={option.value || "none"}
+                            value={option.value}
+                          >
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <label className="block space-y-1.5">
+                      <span className="text-base font-semibold text-slate-700">
+                        Stock *
                       </span>
                       <input
-                        name="name"
-                        value={formValues.name}
+                        type="number"
+                        name="stock"
+                        value={formValues.stock}
                         onChange={onInputChange}
+                        min="0"
+                        step="1"
                         required
                         className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-base text-slate-700 outline-none transition focus:border-slate-300 focus:bg-white"
                       />
                     </label>
 
-                    <div className="grid grid-cols-1 gap-4">
-                      <label className="block space-y-1.5">
-                        <span className="text-base font-semibold text-slate-700">
-                          Type *
-                        </span>
-                        <select
-                          name="type"
-                          value={formValues.type}
-                          onChange={onInputChange}
-                          className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-base text-slate-700 outline-none transition focus:border-slate-300 focus:bg-white appearance-none"
-                        >
-                          {productTypes.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-
-                      <label className="block space-y-1.5">
-                        <span className="text-base font-semibold text-slate-700">
-                          Color
-                        </span>
-                        <select
-                          name="color"
-                          value={formValues.color}
-                          onChange={onInputChange}
-                          className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-base text-slate-700 outline-none transition focus:border-slate-300 focus:bg-white appearance-none"
-                        >
-                          {colorOptions.map((option) => (
-                            <option
-                              key={option.value || "none"}
-                              value={option.value}
-                            >
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4">
-                      <label className="block space-y-1.5">
-                        <span className="text-base font-semibold text-slate-700">
-                          Stock *
-                        </span>
-                        <input
-                          type="number"
-                          name="stock"
-                          value={formValues.stock}
-                          onChange={onInputChange}
-                          min="0"
-                          step="1"
-                          required
-                          className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-base text-slate-700 outline-none transition focus:border-slate-300 focus:bg-white"
-                        />
-                      </label>
-
-                      <label className="block space-y-1.5">
-                        <span className="text-base font-semibold text-slate-700">
-                          Price *
-                        </span>
-                        <input
-                          type="number"
-                          name="price"
-                          value={formValues.price}
-                          onChange={onInputChange}
-                          min="0"
-                          step="0.01"
-                          required
-                          className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-base text-slate-700 outline-none transition focus:border-slate-300 focus:bg-white"
-                        />
-                      </label>
-                    </div>
-
                     <label className="block space-y-1.5">
                       <span className="text-base font-semibold text-slate-700">
-                        Description
+                        Price *
                       </span>
-                      <textarea
-                        name="description"
-                        value={formValues.description}
+                      <input
+                        type="number"
+                        name="price"
+                        value={formValues.price}
                         onChange={onInputChange}
-                        rows={5}
-                        className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-700 outline-none transition focus:border-slate-300 focus:bg-white"
+                        min="0"
+                        step="0.01"
+                        required
+                        className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-base text-slate-700 outline-none transition focus:border-slate-300 focus:bg-white"
                       />
                     </label>
-
-                    {formError && (
-                      <p className="text-sm text-red-600">{formError}</p>
-                    )}
                   </div>
 
-                  {/* RIGHT */}
-                  <div className="w-full shrink-0 lg:w-65">
-                    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                      <p className="text-base font-semibold text-slate-700">
-                        Product Image {editingProduct ? "" : "*"}
-                      </p>
+                  <label className="block space-y-1.5">
+                    <span className="text-base font-semibold text-slate-700">
+                      Description
+                    </span>
+                    <textarea
+                      name="description"
+                      value={formValues.description}
+                      onChange={onInputChange}
+                      rows={5}
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-700 outline-none transition focus:border-slate-300 focus:bg-white"
+                    />
+                  </label>
 
-                      <div className="mt-3 overflow-hidden rounded-3xl border border-slate-200 bg-slate-100">
-                        {imagePreview ? (
-                          <img
-                            src={imagePreview}
-                            alt="Product preview"
-                            className="h-56 w-full object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-56 items-center justify-center px-4 text-center text-sm text-slate-500">
-                            No image selected
-                          </div>
-                        )}
-                      </div>
+                  {formError && (
+                    <p className="text-sm text-red-600">{formError}</p>
+                  )}
+                </div>
 
-                      <input
-                        ref={imageInputRef}
-                        type="file"
-                        accept="image/png,image/jpeg,image/webp"
-                        onChange={onImageChange}
-                        className="hidden"
-                      />
+                <div className="w-full shrink-0 lg:w-65">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                    <p className="text-base font-semibold text-slate-700">
+                      Product Image {editingProduct ? "" : "*"}
+                    </p>
 
-                      <div className="mt-3 flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-                        <span className="min-w-0 flex-1 truncate text-sm text-slate-700">
-                          {selectedImageName}
-                        </span>
-
-                        <button
-                          type="button"
-                          onClick={openImagePicker}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 transition hover:cursor-pointer hover:bg-slate-200"
-                          aria-label="Choose image"
-                        >
-                          <Pencil size={16} />
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={clearImageSelection}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:cursor-pointer hover:bg-slate-200"
-                          aria-label="Clear selected image"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-
-                      <p className="mt-3 text-sm leading-6 text-slate-500">
-                        Allowed: JPG, PNG, WEBP. Max size: 5MB.
-                      </p>
+                    <div className="mt-3 overflow-hidden rounded-3xl border border-slate-200 bg-slate-100">
+                      {imagePreview ? (
+                        <img
+                          src={imagePreview}
+                          alt="Product preview"
+                          className="h-48 w-full object-cover sm:h-56"
+                        />
+                      ) : (
+                        <div className="flex h-48 items-center justify-center px-4 text-center text-sm text-slate-500 sm:h-56">
+                          No image selected
+                        </div>
+                      )}
                     </div>
+
+                    <input
+                      ref={imageInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={onImageChange}
+                      className="hidden"
+                    />
+
+                    <div className="mt-3 flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                      <span className="min-w-0 flex-1 truncate text-sm text-slate-700">
+                        {selectedImageName}
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={openImagePicker}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 transition hover:cursor-pointer hover:bg-slate-200"
+                        aria-label="Choose image"
+                      >
+                        <Pencil size={16} />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={clearImageSelection}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:cursor-pointer hover:bg-slate-200"
+                        aria-label="Clear selected image"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+
+                    <p className="mt-3 text-sm leading-6 text-slate-500">
+                      Allowed: JPG, PNG, WEBP. Max size: 5MB.
+                    </p>
                   </div>
                 </div>
-              </form>
+              </div>
+
+              <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:items-center sm:justify-end">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  disabled={saving}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 transition hover:cursor-pointer hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="w-full rounded-xl bg-linear-to-r from-[#ff3b92] via-[#c44bc4] to-[#8b5cf6] px-4 py-2.5 text-[13px] font-semibold text-white shadow-sm transition hover:cursor-pointer hover:bg-linear-to-r hover:from-[#e50079] hover:via-[#c237be] hover:to-[#9b16f7] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                >
+                  {saving ? "Saving..." : submitLabel}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {productToDelete && (
+        <div
+          className={`admin-delete-modal-backdrop${
+            isDeleteDialogClosing ? " closing" : ""
+          }`}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !deletingProduct) {
+              closeDeleteDialog();
+            }
+          }}
+        >
+          <div
+            className={`admin-delete-modal${
+              isDeleteDialogClosing ? " closing" : ""
+            }`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-product-title"
+          >
+            <button
+              type="button"
+              className="admin-modal-close"
+              aria-label="Close dialog"
+              onClick={() => closeDeleteDialog()}
+              disabled={deletingProduct}
+            >
+              <X size={18} />
+            </button>
+
+            <div className="admin-modal-title" id="delete-product-title">
+              <AlertTriangle size={20} />
+              <span>Delete Product</span>
             </div>
 
-            <div className="flex items-center justify-end gap-3 border-t border-slate-200 bg-slate-50 px-7 py-4">
+            <p className="admin-modal-desc">
+              Are you sure you want to delete{" "}
+              <strong>{productToDelete.name}</strong>? This action is permanent
+              and cannot be undone.
+            </p>
+
+            <p className="admin-modal-list-title">
+              This will permanently delete:
+            </p>
+
+            <ul className="admin-modal-list">
+              <li>The product from your catalog</li>
+              <li>Its stock, price, color, and description</li>
+              <li>Its uploaded product image</li>
+            </ul>
+
+            <div className="admin-modal-actions">
               <button
                 type="button"
-                onClick={closeModal}
-                disabled={saving}
-                className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-base font-medium text-slate-700 transition hover:cursor-pointer hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                className="admin-modal-cancel"
+                onClick={() => closeDeleteDialog()}
+                disabled={deletingProduct}
               >
                 Cancel
               </button>
 
               <button
-                type="submit"
-                form="product-form"
-                disabled={saving}
-                className="rounded-xl bg-linear-to-r from-[#ff3b92] to-[#8b5cf6] px-5 py-2.5 text-base font-semibold text-white shadow-sm transition hover:cursor-pointer hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+                type="button"
+                className="admin-modal-confirm"
+                onClick={onConfirmDeleteProduct}
+                disabled={deletingProduct}
               >
-                {saving ? "Saving..." : submitLabel}
+                <Trash2 size={15} />
+                <span>
+                  {deletingProduct ? "Deleting..." : "Yes, Delete Product"}
+                </span>
               </button>
             </div>
           </div>

@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser'
 import dotenv from 'dotenv'
 import fs from 'fs'
 import path from 'path'
+import { fileURLToPath } from 'url'
 import authRouter from '../routers/auth-router.js'
 import productRouter from '../routers/product-router.js'
 import wishlistRouter from '../routers/wishlist-router.js'
@@ -11,10 +12,13 @@ import cartRouter from '../routers/cart-router.js'
 import promoRouter from '../routers/promo-router.js'
 import orderRouter from '../routers/order-router.js'
 import adminRouter from '../routers/admin-router.js'
+import chatRouter from '../routers/chat-router.js'
 import optionalAuth from '../middleware/optional-auth-middleware.js'
 import { handleStripeWebhook } from '../routers/controllers/order-controller.js'
 
-dotenv.config()
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const app = express();
 
@@ -40,6 +44,7 @@ app.use('/api/cart', optionalAuth, cartRouter);
 app.use('/api/promos', promoRouter);
 app.use('/api/orders', orderRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/chat', chatRouter);
 
 app.use((err, req, res, next) => {
     if (err?.name === 'MulterError') {

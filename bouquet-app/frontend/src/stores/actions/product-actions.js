@@ -12,7 +12,7 @@ export const fetchProducts =
             if (maxPrice != null) params.set("maxPrice", String(maxPrice));
             if (inStock) params.set("inStock", "1");
             params.set("page", String(page));
-            params.set("limit", String(limit));
+            params.set("pageSize", String(limit));
 
             try {
                 const res = await fetch(apiUrl(`/api/products?${params.toString()}`));

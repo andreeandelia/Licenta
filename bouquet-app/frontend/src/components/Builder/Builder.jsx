@@ -9,9 +9,40 @@ import {
   addToBouquet,
   changeQty,
   clearBouquet,
+  setGreetingCardMessage,
 } from "../../stores/actions/bouquet-actions";
-import { mediaUrl } from "../../config/global";
+import { apiUrl, mediaUrl } from "../../config/global";
 import "./Builder.css";
+
+const CHAT_STORAGE_PREFIX = "bouquet.chat.v1";
+const MAX_CHAT_MESSAGES = 40;
+const DEFAULT_ASSISTANT_MESSAGE = {
+  role: "assistant",
+  content:
+    "Hello! I am your florist assistant. Tell me the occasion, preferred colors, and budget, and I will suggest the best flowers.",
+};
+
+function getChatStorageKey(userId) {
+  return userId
+    ? `${CHAT_STORAGE_PREFIX}.user.${userId}`
+    : `${CHAT_STORAGE_PREFIX}.guest`;
+}
+
+function sanitizeChatMessages(value) {
+  if (!Array.isArray(value)) return null;
+
+  const normalized = value
+    .map((entry) => {
+      const role = entry?.role === "user" ? "user" : "assistant";
+      const content = String(entry?.content || "").trim();
+      if (!content) return null;
+      return { role, content };
+    })
+    .filter(Boolean)
+    .slice(-MAX_CHAT_MESSAGES);
+
+  return normalized.length ? normalized : null;
+}
 
 const STEPS = [
   { id: 1, label: "Select Flowers", type: "FLOWER" },
@@ -71,6 +102,13 @@ function resolveImageSrc(imageUrl) {
   );
 }
 
+function isGreetingCardName(name) {
+  return String(name || "")
+    .trim()
+    .toLowerCase()
+    .includes("greeting card");
+}
+
 export default function BuilderPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -85,18 +123,55 @@ export default function BuilderPage() {
   const [wishlistMsg, setWishlistMsg] = useState("");
   const [cartMsg, setCartMsg] = useState("");
   const [addingToCart, setAddingToCart] = useState(false);
+  const [chatMessages, setChatMessages] = useState([DEFAULT_ASSISTANT_MESSAGE]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatError, setChatError] = useState("");
 
   // filters
   const [selectedColors, setSelectedColors] = useState([]);
   const [minPrice, setMinPrice] = useState(0);
   const [maxPrice, setMaxPrice] = useState(20);
   const [inStock, setInStock] = useState(false);
+  const [productPage, setProductPage] = useState(1);
 
   const current = STEPS.find((x) => x.id === step);
   const safeTotalPages = Math.max(1, Number(totalPages) || 1);
-  const safePage = Math.max(1, Number(page) || 1);
+  const safePage = Math.max(1, productPage);
+  const chatStorageKey = getChatStorageKey(user?.id);
 
-  // load products when step/filters/page change
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(chatStorageKey);
+      if (!raw) {
+        setChatMessages([DEFAULT_ASSISTANT_MESSAGE]);
+        return;
+      }
+
+      const parsed = JSON.parse(raw);
+      const restored = sanitizeChatMessages(parsed?.messages);
+      setChatMessages(restored || [DEFAULT_ASSISTANT_MESSAGE]);
+    } catch {
+      setChatMessages([DEFAULT_ASSISTANT_MESSAGE]);
+    }
+
+    setChatError("");
+    setChatInput("");
+  }, [chatStorageKey]);
+
+  useEffect(() => {
+    try {
+      const payload = {
+        version: 1,
+        updatedAt: Date.now(),
+        messages: chatMessages.slice(-MAX_CHAT_MESSAGES),
+      };
+      localStorage.setItem(chatStorageKey, JSON.stringify(payload));
+    } catch {
+      // localStorage may be unavailable in private mode or full quota.
+    }
+  }, [chatStorageKey, chatMessages]);
+
   useEffect(() => {
     if (!current?.type) return;
 
@@ -107,27 +182,19 @@ export default function BuilderPage() {
         minPrice,
         maxPrice,
         inStock,
-        page: page || 1,
+        page: productPage,
         limit: 6,
       }),
     );
-  }, [dispatch, current?.type, selectedColors, minPrice, maxPrice, inStock]);
-
-  // when step changes, reset to page 1 by refetch with page=1
-  useEffect(() => {
-    if (!current?.type) return;
-    dispatch(
-      fetchProducts({
-        type: current.type,
-        colors: selectedColors,
-        minPrice,
-        maxPrice,
-        inStock,
-        page: 1,
-        limit: 6,
-      }),
-    );
-  }, [step]);
+  }, [
+    dispatch,
+    current?.type,
+    selectedColors,
+    minPrice,
+    maxPrice,
+    inStock,
+    productPage,
+  ]);
 
   const total = useMemo(() => {
     const flowersTotal = bouquet.flowers.reduce(
@@ -150,6 +217,8 @@ export default function BuilderPage() {
       qty: item.qty,
       unitPrice: Number(item.price),
       subtotal: Number(item.price) * item.qty,
+      imageUrl: item.imageUrl || "",
+      isGreetingCard: false,
     }));
 
     const wrapping = bouquet.wrapping
@@ -161,6 +230,8 @@ export default function BuilderPage() {
             qty: 1,
             unitPrice: Number(bouquet.wrapping.price),
             subtotal: Number(bouquet.wrapping.price),
+            imageUrl: bouquet.wrapping.imageUrl || "",
+            isGreetingCard: false,
           },
         ]
       : [];
@@ -172,12 +243,27 @@ export default function BuilderPage() {
       qty: item.qty,
       unitPrice: Number(item.price),
       subtotal: Number(item.price) * item.qty,
+      imageUrl: item.imageUrl || "",
+      isGreetingCard: isGreetingCardName(item.name),
     }));
 
     return [...flowers, ...wrapping, ...accessories];
   }, [bouquet]);
 
+  const hasGreetingCard = bouquet.accessories.some((item) =>
+    isGreetingCardName(item.name),
+  );
+
+  useEffect(() => {
+    if (hasGreetingCard) return;
+    if (!bouquet.greetingCardMessage) return;
+
+    dispatch(setGreetingCardMessage(""));
+  }, [dispatch, hasGreetingCard, bouquet.greetingCardMessage]);
+
   function toggleColor(c) {
+    setProductPage(1);
+
     setSelectedColors((prev) =>
       prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c],
     );
@@ -187,12 +273,31 @@ export default function BuilderPage() {
     dispatch(addToBouquet(product, current.type));
   }
 
+  function onGreetingCardMessageChange(event) {
+    dispatch(setGreetingCardMessage(event.target.value));
+  }
+
+  function goToStep(nextStep) {
+    setStep(nextStep);
+    setProductPage(1);
+    setCartMsg("");
+    setWishlistMsg("");
+  }
+
   function goPrev() {
-    setStep((s) => Math.max(1, s - 1));
+    goToStep(Math.max(1, step - 1));
   }
 
   function goNext() {
-    setStep((s) => Math.min(4, s + 1));
+    goToStep(Math.min(4, step + 1));
+  }
+
+  function goPrevProductPage() {
+    setProductPage((currentPage) => Math.max(1, currentPage - 1));
+  }
+
+  function goNextProductPage() {
+    setProductPage((currentPage) => Math.min(safeTotalPages, currentPage + 1));
   }
 
   async function onSaveWishlist() {
@@ -243,6 +348,103 @@ export default function BuilderPage() {
     setCartMsg(result?.error || "Could not add bouquet to cart.");
   }
 
+  async function onSendChatMessage() {
+    const message = chatInput.trim();
+    if (!message || chatLoading) return;
+
+    const nextMessages = [
+      ...chatMessages,
+      { role: "user", content: message },
+    ].slice(-MAX_CHAT_MESSAGES);
+    setChatMessages(nextMessages);
+    setChatInput("");
+    setChatLoading(true);
+    setChatError("");
+
+    try {
+      const history = nextMessages
+        .slice(0, -1)
+        .map((entry) => ({ role: entry.role, content: entry.content }));
+
+      const res = await fetch(apiUrl("/api/chat"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          message,
+          history,
+          context: {
+            currentStep: current?.label || "",
+            currentProductType: current?.type || "",
+            bouquet: {
+              flowers: bouquet.flowers.map((item) => ({
+                name: item.name,
+                qty: item.qty,
+                price: Number(item.price),
+              })),
+              wrapping: bouquet.wrapping
+                ? {
+                    name: bouquet.wrapping.name,
+                    price: Number(bouquet.wrapping.price),
+                  }
+                : null,
+              accessories: bouquet.accessories.map((item) => ({
+                name: item.name,
+                qty: item.qty,
+                price: Number(item.price),
+              })),
+              greetingCardMessage: bouquet.greetingCardMessage || "",
+              total: Number(total.toFixed(2)),
+            },
+            filters: {
+              selectedColors,
+              minPrice,
+              maxPrice,
+              inStock,
+            },
+          },
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Could not contact florist assistant.");
+      }
+
+      const reply = String(data?.reply || "").trim();
+
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content:
+            reply ||
+            "I could not generate a response right now. Please try again in a moment.",
+        },
+      ]);
+    } catch (err) {
+      setChatError(err?.message || "Could not contact florist assistant.");
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content:
+            "I am having trouble reaching the inventory service. Please try again shortly.",
+        },
+      ]);
+    } finally {
+      setChatLoading(false);
+    }
+  }
+
+  function onChatInputKeyDown(e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      onSendChatMessage();
+    }
+  }
+
   return (
     <div className="builder">
       <div className="builder-head">
@@ -251,15 +453,19 @@ export default function BuilderPage() {
           Create your perfect custom bouquet step by step
         </p>
 
-        <div className="stepper">
+        <div className={`stepper stepper-${step}`}>
           {STEPS.map((s, idx) => (
             <div key={s.id} className="step">
               <div
-                className={`step-dot ${step === s.id ? "active" : step > s.id ? "done" : ""}`}
+                className={`step-dot ${
+                  step === s.id ? "active" : step > s.id ? "done" : ""
+                }`}
               >
                 {s.id}
               </div>
+
               <div className="step-label">{s.label}</div>
+
               {idx < STEPS.length - 1 && (
                 <div className={`step-line ${step > s.id ? "active" : ""}`} />
               )}
@@ -310,18 +516,20 @@ export default function BuilderPage() {
                     min="0"
                     max="20"
                     value={minPrice}
-                    onChange={(e) =>
-                      setMinPrice(Math.min(Number(e.target.value), maxPrice))
-                    }
+                    onChange={(e) => {
+                      setProductPage(1);
+                      setMinPrice(Math.min(Number(e.target.value), maxPrice));
+                    }}
                   />
                   <input
                     type="range"
                     min="0"
                     max="20"
                     value={maxPrice}
-                    onChange={(e) =>
-                      setMaxPrice(Math.max(Number(e.target.value), minPrice))
-                    }
+                    onChange={(e) => {
+                      setProductPage(1);
+                      setMaxPrice(Math.max(Number(e.target.value), minPrice));
+                    }}
                   />
                 </div>
 
@@ -329,14 +537,17 @@ export default function BuilderPage() {
                   <input
                     type="checkbox"
                     checked={inStock}
-                    onChange={(e) => setInStock(e.target.checked)}
+                    onChange={(e) => {
+                      setProductPage(1);
+                      setInStock(e.target.checked);
+                    }}
                   />
                   <span>In Stock Only</span>
                 </label>
               </aside>
 
               <div className="products">
-                {loading && <div className="state">Loading...</div>}
+                {loading && <div className="state empty">Loading...</div>}
                 {error && !loading && (
                   <div className="state error">{error}</div>
                 )}
@@ -344,7 +555,7 @@ export default function BuilderPage() {
                 {!loading &&
                   !error &&
                   (items.length === 0 ? (
-                    <div className="state">
+                    <div className="state empty">
                       No products found for current filters.
                     </div>
                   ) : (
@@ -383,25 +594,45 @@ export default function BuilderPage() {
 
                 <div className="pager">
                   <button
-                    className="pager-btn ghost"
-                    onClick={goPrev}
-                    disabled={step === 1}
+                    className="pager-arrow-btn"
+                    type="button"
+                    onClick={goPrevProductPage}
+                    disabled={safePage <= 1 || loading}
                   >
-                    ‹ Previous
+                    ‹
                   </button>
 
                   <div className="pager-mid">
-                    {current?.type
-                      ? `Page ${safePage} / ${safeTotalPages}`
-                      : null}
+                    Page {safePage} / {safeTotalPages}
                   </div>
 
                   <button
+                    className="pager-arrow-btn"
+                    type="button"
+                    onClick={goNextProductPage}
+                    disabled={safePage >= safeTotalPages || loading}
+                  >
+                    ›
+                  </button>
+                </div>
+
+                <div className="step-actions">
+                  <button
+                    className="pager-btn ghost"
+                    type="button"
+                    onClick={goPrev}
+                    disabled={step === 1}
+                  >
+                    ‹ Previous step
+                  </button>
+
+                  <button
                     className="pager-btn"
+                    type="button"
                     onClick={goNext}
                     disabled={step === 4}
                   >
-                    Next ›
+                    Next step ›
                   </button>
                 </div>
               </div>
@@ -415,11 +646,31 @@ export default function BuilderPage() {
                   <div className="summary-list">
                     {summaryItems.map((item) => (
                       <div key={item.id} className="summary-row">
-                        <div>
-                          <div className="summary-name">{item.name}</div>
-                          <div className="summary-type">
-                            {item.type} RON {item.unitPrice.toFixed(2)} x{" "}
-                            {item.qty}
+                        <div className="summary-left">
+                          {resolveImageSrc(item.imageUrl) ? (
+                            <img
+                              className="summary-thumb"
+                              src={resolveImageSrc(item.imageUrl)}
+                              alt={item.name}
+                            />
+                          ) : (
+                            <div
+                              className="summary-thumb summary-thumb-placeholder"
+                              aria-hidden="true"
+                            />
+                          )}
+                          <div className="summary-text">
+                            <div className="summary-name">{item.name}</div>
+                            <div className="summary-type">
+                              {item.type} RON {item.unitPrice.toFixed(2)} x{" "}
+                              {item.qty}
+                            </div>
+                            {item.isGreetingCard &&
+                              bouquet.greetingCardMessage && (
+                                <div className="summary-message">
+                                  MESSAGE: {bouquet.greetingCardMessage}
+                                </div>
+                              )}
                           </div>
                         </div>
 
@@ -508,6 +759,25 @@ export default function BuilderPage() {
                     />
                   ))}
 
+                  {hasGreetingCard && (
+                    <div className="greeting-card-message-box">
+                      <div className="greeting-card-message-title">
+                        Greeting Card Message
+                      </div>
+                      <textarea
+                        className="greeting-card-message-input"
+                        value={bouquet.greetingCardMessage || ""}
+                        onChange={onGreetingCardMessageChange}
+                        maxLength={200}
+                        rows={3}
+                        placeholder="Write your message here..."
+                      />
+                      <div className="greeting-card-message-hint">
+                        This message will be printed on the greeting card.
+                      </div>
+                    </div>
+                  )}
+
                   <div className="side-total">
                     <span>Total</span>
                     <b>RON {total.toFixed(2)}</b>
@@ -543,8 +813,47 @@ export default function BuilderPage() {
             </div>
 
             <div className="side-card ai">
-              <div className="side-title">✨ AI Assistant</div>
-              <div className="side-empty">Later</div>
+              <div className="side-title">✨ Florist Assistant</div>
+              <div className="ai-chat-list">
+                {chatMessages.map((msg, idx) => (
+                  <div
+                    key={`${msg.role}-${idx}`}
+                    className={`ai-msg ${msg.role === "assistant" ? "assistant" : "user"}`}
+                  >
+                    {msg.content}
+                  </div>
+                ))}
+
+                {chatLoading && (
+                  <div className="ai-msg assistant">
+                    Florist is checking options...
+                  </div>
+                )}
+              </div>
+
+              <div className="ai-chat-input-wrap">
+                <textarea
+                  className="ai-chat-input"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={onChatInputKeyDown}
+                  placeholder="Ask about flowers, colors, or stock..."
+                  rows={2}
+                  disabled={chatLoading}
+                />
+                <button
+                  className="ai-chat-send"
+                  type="button"
+                  onClick={onSendChatMessage}
+                  disabled={chatLoading || !chatInput.trim()}
+                >
+                  {chatLoading ? "Sending..." : "Send"}
+                </button>
+              </div>
+
+              {chatError && (
+                <div className="builder-error-msg">{chatError}</div>
+              )}
             </div>
           </div>
         )}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
-import { Trash2 } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { ShoppingCart, Trash2 } from "lucide-react";
 import {
   clearCart,
   fetchCart,
@@ -39,6 +39,13 @@ function itemCount(bouquetDetails) {
   const wrappingCount = bouquetDetails?.wrapping ? 1 : 0;
 
   return flowerCount + accessoryCount + wrappingCount;
+}
+
+function isGreetingCardName(name) {
+  return String(name || "")
+    .trim()
+    .toLowerCase()
+    .includes("greeting card");
 }
 
 export default function Cart() {
@@ -80,7 +87,18 @@ export default function Cart() {
       {error && !loading && <div className="cart-state error">{error}</div>}
 
       {!loading && !error && items.length === 0 && (
-        <div className="cart-state">Your cart is empty.</div>
+        <div className="cart-empty">
+          <div className="cart-empty-icon" aria-hidden="true">
+            <ShoppingCart size={28} />
+          </div>
+          <h2>Your cart is empty.</h2>
+          <p>
+            Start building a bouquet and add it to your cart when you're ready.
+          </p>
+          <Link to="/builder" className="cart-empty-cta">
+            Go to Builder
+          </Link>
+        </div>
       )}
 
       {!loading && !error && items.length > 0 && (
@@ -175,6 +193,22 @@ export default function Cart() {
                         )}
                       </div>
                     </div>
+
+                    {details.greetingCardMessage &&
+                      itemLines(details, "ACCESSORY").some((line) =>
+                        isGreetingCardName(line.name),
+                      ) && (
+                        <div className="cart-section">
+                          <div className="cart-section-title">
+                            Greeting Card Message
+                          </div>
+                          <div className="cart-lines">
+                            <div className="cart-line cart-message-line">
+                              <span>{details.greetingCardMessage}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                   </div>
 
                   <div className="cart-card-foot">

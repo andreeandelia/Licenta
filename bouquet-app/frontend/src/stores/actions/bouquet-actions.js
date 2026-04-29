@@ -17,6 +17,11 @@ export const clearBouquet = () => ({
     type: "BOUQUET_CLEAR",
 });
 
+export const setGreetingCardMessage = (message) => ({
+    type: "BOUQUET_SET_GREETING_CARD_MESSAGE",
+    payload: message,
+});
+
 export const setBouquet = (bouquet) => ({
     type: "BOUQUET_SET",
     payload: bouquet,

@@ -1,3 +1,8 @@
+.help-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #f7e8f1 0%, #ffffff 100%);
+}
+
 .help-wrap {
   max-width: 1400px;
   margin: 0 auto;
@@ -12,12 +17,15 @@
   margin: 0;
   color: #111827;
   font-size: 28px;
+  font-weight: 500;
+  line-height: 1.2;
 }
 
 .help-head p {
   margin: 8px 0 0;
   color: #6b7280;
   font-size: 14px;
+  line-height: 1.45;
 }
 
 .help-nav {
@@ -33,9 +41,10 @@
   background: #fff;
   color: #111827;
   font-weight: 500;
-  font-size: 13px;
-  padding: 7px 11px;
+  font-size: 14px;
+  padding: 12px 18px;
   text-decoration: none;
+  transition: all 0.2s ease;
 }
 
 .help-nav-link:hover {
@@ -99,20 +108,22 @@
 .help-section-head h2 {
   margin: 0;
   color: #111827;
-  font-size: 32px;
+  font-size: 24px;
+  font-weight: 500;
   line-height: 1.2;
 }
 
 .help-section-head p {
   margin: 4px 0 0;
   color: #6b7280;
-  font-size: 16px;
+  font-size: 14px;
+  line-height: 1.45;
 }
 
 .help-card h3 {
   margin: 0;
   color: #111827;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 600;
 }
 
@@ -146,7 +157,7 @@
   border: none;
   background: transparent;
   color: #111827;
-  padding: 16px 18px;
+  padding: 12px 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
