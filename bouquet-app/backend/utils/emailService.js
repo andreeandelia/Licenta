@@ -11,6 +11,176 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
+function round2(value) {
+    return Number(Number(value || 0).toFixed(2));
+}
+
+function formatMoney(value) {
+    return `${round2(value).toFixed(2)} RON`;
+}
+
+function formatDeliveryOptionLabel(value) {
+    const normalizedValue = String(value || '').trim().toUpperCase();
+
+    if (normalizedValue === 'STANDARD') return 'Standard delivery';
+    if (normalizedValue === 'SAME_DAY') return 'Same-day delivery';
+    if (normalizedValue === 'EXPRESS') return 'Express delivery';
+
+    return normalizedValue || 'N/A';
+}
+
+function buildDeliveryAddressLines(orderDetails) {
+    const street = String(orderDetails?.deliveryStreet || '').trim();
+    const city = String(orderDetails?.deliveryCity || '').trim();
+    const state = String(orderDetails?.deliveryState || '').trim();
+    const zipCode = String(orderDetails?.deliveryZipCode || '').trim();
+    const deliveryDetails = String(orderDetails?.deliveryDetails || '').trim();
+
+    const addressParts = [street, city, state, zipCode].filter(Boolean);
+    const address = addressParts.join(', ');
+
+    return {
+        address: address || 'N/A',
+        deliveryDetails: deliveryDetails || 'None',
+    };
+}
+
+function normalizeOrderLines(lines) {
+    if (!Array.isArray(lines)) {
+        return [];
+    }
+
+    return lines.map((line) => ({
+        id: line?.id || '',
+        quantity: Math.max(1, Number(line?.quantity || 1)),
+        totalPrice: round2(line?.totalPrice),
+        priceBouquetSnapshot: round2(line?.priceBouquetSnapshot),
+        bouquet: line?.bouquet ? {
+            id: line.bouquet.id || '',
+            price: round2(line.bouquet.price),
+            greetingCardMessage: String(line.bouquet.greetingCardMessage || '').trim(),
+            items: Array.isArray(line.bouquet.items) ? line.bouquet.items.map((item) => ({
+                id: item?.id || '',
+                quantity: Math.max(1, Number(item?.quantity || 1)),
+                priceSnapshot: round2(item?.priceSnapshot),
+                product: item?.product ? {
+                    id: item.product.id || '',
+                    name: String(item.product.name || '').trim(),
+                    type: String(item.product.type || '').trim(),
+                    imageUrl: String(item.product.imageUrl || '').trim(),
+                } : null,
+            })) : [],
+        } : null,
+    }));
+}
+
+function buildOrderItemsHtml(lines) {
+    const normalizedLines = normalizeOrderLines(lines);
+
+    if (normalizedLines.length === 0) {
+        return '';
+    }
+
+    const rowsHtml = normalizedLines.map((line, index) => {
+        const bouquetNumber = index + 1;
+        const bouquetLabel = line.bouquet?.items?.length
+            ? line.bouquet.items
+                .map((item) => `${escapeHtml(item.product?.name || 'Product')} x${item.quantity}`)
+                .join(', ')
+            : 'No bouquet details available';
+        const greetingCardMessage = line.bouquet?.greetingCardMessage
+            ? escapeHtml(line.bouquet.greetingCardMessage)
+            : 'None';
+
+        return `
+            <tr>
+                <td style="padding:14px 0;border-top:1px solid #f2d6e8;font-family:Arial,sans-serif;color:#111827;">
+                    <p style="margin:0 0 4px 0;font-size:14px;font-weight:700;">Custom Bouquet #${bouquetNumber}</p>
+                    <p style="margin:0 0 4px 0;font-size:13px;color:#6b7280;">Quantity: ${line.quantity}</p>
+                    <p style="margin:0 0 4px 0;font-size:13px;color:#6b7280;">Contents: ${bouquetLabel}</p>
+                    <p style="margin:0;font-size:13px;color:#6b7280;">Greeting card: ${greetingCardMessage}</p>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    return `
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:16px;background-color:#fff7fb;border:1px solid #f2d6e8;border-radius:12px;padding:0 14px;">
+            <tr>
+                <td style="padding:14px 0 10px 0;font-family:Arial,sans-serif;font-size:13px;font-weight:700;color:#111827;">
+                    Ordered bouquets
+                </td>
+            </tr>
+            ${rowsHtml}
+        </table>
+    `;
+}
+
+function buildOrderItemsText(lines) {
+    const normalizedLines = normalizeOrderLines(lines);
+
+    if (normalizedLines.length === 0) {
+        return '';
+    }
+
+    const sections = normalizedLines.map((line, index) => {
+        const bouquetNumber = index + 1;
+        const bouquetLabel = line.bouquet?.items?.length
+            ? line.bouquet.items
+                .map((item) => `${item.product?.name || 'Product'} x${item.quantity}`)
+                .join(', ')
+            : 'No bouquet details available';
+        const greetingCardMessage = line.bouquet?.greetingCardMessage || 'None';
+
+        return [
+            `Custom Bouquet #${bouquetNumber}`,
+            `Quantity: ${line.quantity}`,
+            `Contents: ${bouquetLabel}`,
+            `Greeting card: ${greetingCardMessage}`,
+        ].join('\n');
+    });
+
+    return `\n\nOrdered bouquets:\n${sections.join('\n\n')}`;
+}
+
+function buildOrderSummaryHtml(orderDetails) {
+    const { address, deliveryDetails } = buildDeliveryAddressLines(orderDetails);
+    const deliveryOption = formatDeliveryOptionLabel(orderDetails?.deliveryOption);
+    const deliveryTax = formatMoney(orderDetails?.deliveryTax);
+    const finalPrice = formatMoney(orderDetails?.finalPrice);
+
+    return `
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:16px;background-color:#f7edf4;border:1px solid #f2d6e8;border-radius:12px;">
+            <tr>
+                <td style="padding:12px 14px;font-family:Arial,sans-serif;font-size:13px;color:#6b7280;line-height:1.6;">
+                    Delivery method: ${escapeHtml(deliveryOption)}<br />
+                    Address: ${escapeHtml(address)}<br />
+                    Delivery details: ${escapeHtml(deliveryDetails)}<br />
+                    Transport: ${escapeHtml(deliveryTax)}<br />
+                    Total order: ${escapeHtml(finalPrice)}
+                </td>
+            </tr>
+        </table>
+    `;
+}
+
+function buildOrderSummaryText(orderDetails) {
+    const { address, deliveryDetails } = buildDeliveryAddressLines(orderDetails);
+    const deliveryOption = formatDeliveryOptionLabel(orderDetails?.deliveryOption);
+    const deliveryTax = formatMoney(orderDetails?.deliveryTax);
+    const finalPrice = formatMoney(orderDetails?.finalPrice);
+
+    return [
+        '',
+        'Delivery summary:',
+        `Delivery method: ${deliveryOption}`,
+        `Address: ${address}`,
+        `Delivery details: ${deliveryDetails}`,
+        `Transport: ${deliveryTax}`,
+        `Total order: ${finalPrice}`,
+    ].join('\n');
+}
+
 function getTransporter() {
     if (!transporter) {
         const smtpUser = process.env.SMTP_USER;
@@ -186,7 +356,7 @@ const ORDER_STATUS_EMAIL_CONTENT = {
     },
 };
 
-async function sendOrderStatusEmail(to, orderId, orderStatus, customerName) {
+async function sendOrderStatusEmail(to, orderId, orderStatus, customerName, orderDetails = {}) {
     const content = ORDER_STATUS_EMAIL_CONTENT[String(orderStatus || '').toUpperCase()];
     if (!content) {
         return null;
@@ -197,6 +367,10 @@ async function sendOrderStatusEmail(to, orderId, orderStatus, customerName) {
     const normalizedName = String(customerName || '').trim();
     const safeName = escapeHtml(normalizedName || 'there');
     const safeOrderId = escapeHtml(String(orderId || ''));
+    const orderItemsHtml = buildOrderItemsHtml(orderDetails?.lines);
+    const orderItemsText = buildOrderItemsText(orderDetails?.lines);
+    const orderSummaryHtml = buildOrderSummaryHtml(orderDetails);
+    const orderSummaryText = buildOrderSummaryText(orderDetails);
 
     const html = `
                 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0;padding:0;background-color:transparent;">
@@ -221,6 +395,8 @@ async function sendOrderStatusEmail(to, orderId, orderStatus, customerName) {
                                                 </td>
                                             </tr>
                                         </table>
+                                        ${orderSummaryHtml}
+                                        ${orderItemsHtml}
                                     </td>
                                 </tr>
                             </table>
@@ -230,7 +406,7 @@ async function sendOrderStatusEmail(to, orderId, orderStatus, customerName) {
         `;
 
     const subjectWithOrderNumber = `${content.subject}`;
-    const text = `${content.heading}\n\nHi ${normalizedName || 'there'},\n\n${content.text}\n\nOrder number: ${String(orderId || '')}\nCurrent status: ${String(orderStatus || '')}`;
+    const text = `${content.heading}\n\nHi ${normalizedName || 'there'},\n\n${content.text}\n\nOrder number: ${String(orderId || '')}\nCurrent status: ${String(orderStatus || '')}${orderSummaryText}${orderItemsText}`;
 
     const result = await mailer.sendMail({
         from: fromEmail,

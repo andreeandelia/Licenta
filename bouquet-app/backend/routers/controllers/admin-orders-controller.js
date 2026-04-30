@@ -228,7 +228,7 @@ export async function updateAdminOrderStatus(req, res, next) {
 
             if (recipientEmail) {
                 try {
-                    await sendOrderStatusEmail(recipientEmail, updated.id, newStatus, recipientName);
+                    await sendOrderStatusEmail(recipientEmail, updated.id, newStatus, recipientName, updated);
                 } catch (emailError) {
                     console.error(
                         `Failed to send status email for order ${updated.id} and status ${newStatus}:`,

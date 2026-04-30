@@ -540,7 +540,7 @@ export default function AdminOrders() {
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <h3 className="truncate text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">
-                    {selectedOrderDetail.id}
+                    Order {selectedOrderDetail.id}
                   </h3>
                   <p className="mt-1 text-xs text-slate-500 sm:text-sm">
                     Placed on {formatDateTime(selectedOrderDetail.createdAt)}
@@ -627,7 +627,7 @@ export default function AdminOrders() {
                 </label>
               </div>
 
-              <div className="grid gap-3.5 lg:grid-cols-2">
+              <div className="grid gap-3.5 lg:grid-cols-2!">
                 <div className="h-full min-w-0 rounded-2xl border border-slate-200 bg-white p-3.5">
                   <div className="mb-2 flex items-center gap-2">
                     <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-pink-50 text-[#ff3b92]">
@@ -847,17 +847,6 @@ export default function AdminOrders() {
                   </div>
                 </div>
               </div>
-            </div>
-
-            <div className="border-t border-slate-200 px-4 py-4 sm:px-6">
-              <button
-                type="button"
-                onClick={closeModal}
-                disabled={updating}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 transition hover:cursor-pointer hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-              >
-                Close
-              </button>
             </div>
           </div>
         </div>
