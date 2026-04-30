@@ -295,23 +295,24 @@
 }
 
 .orders-modal-btn-secondary {
-  border: 1px solid rgba(15, 23, 42, 0.16);
+  border: 1px solid rgba(15, 23, 42, 0.14);
   background: #fff;
-  color: #1f2937;
+  color: #374151;
 }
 
 .orders-modal-btn-secondary:hover:not(:disabled) {
-  background: #f8fafc;
+  background: #f9fafb;
 }
 
 .orders-modal-btn-danger {
-  border: 1px solid rgba(185, 28, 28, 0.3);
-  background: #fee2e2;
-  color: #991b1b;
+  border: 1px solid #e11d48;
+  background: #e11d48;
+  color: #ffffff;
 }
 
 .orders-modal-btn-danger:hover:not(:disabled) {
-  background: #fecaca;
+  background: #be123c;
+  border-color: #be123c;
 }
 
 @media (max-width: 860px) {

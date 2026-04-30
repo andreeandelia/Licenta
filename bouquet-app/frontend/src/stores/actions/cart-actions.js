@@ -92,15 +92,22 @@ export const removeCartItem = (id) => async (dispatch) => {
 export const clearCart = () => async (dispatch, getState) => {
     const currentItems = getState()?.cart?.items || [];
 
+    dispatch({ type: "CART_LOADING" });  // Disable cart operations during clear
+
     try {
-        await Promise.all(
-            currentItems.map((item) =>
-                fetch(apiUrl(`/api/cart/${item.id}`), {
-                    method: "DELETE",
-                    credentials: "include",
-                }),
-            ),
-        );
+        // Delete items sequentially with proper error handling
+        // This prevents race conditions with concurrent add/remove operations
+        for (const item of currentItems) {
+            const res = await fetch(apiUrl(`/api/cart/${item.id}`), {
+                method: "DELETE",
+                credentials: "include",
+            });
+
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data?.error || `Failed to delete item ${item.id}`);
+            }
+        }
 
         await dispatch(fetchCart());
         return { ok: true };

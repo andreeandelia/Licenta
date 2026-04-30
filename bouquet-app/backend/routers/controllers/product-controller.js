@@ -2,6 +2,9 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// Fix #4: Define valid product types
+const VALID_PRODUCT_TYPES = new Set(['FLOWER', 'ACCESSORY', 'WRAPPING']);
+
 function parseBool(v) {
     return v === "1" || v === "true";
 }
@@ -20,6 +23,13 @@ async function listProducts(req, res, next) {
         const inStock = parseBool(req.query.inStock);
         const page = Math.max(Number(req.query.page) || 1, 1);
         const pageSize = Math.min(Math.max(Number(req.query.pageSize) || 6, 1), 24);
+
+        // Fix #4: Validate product type
+        if (type && !VALID_PRODUCT_TYPES.has(type)) {
+            return res.status(400).json({
+                error: `Invalid product type. Must be one of: ${Array.from(VALID_PRODUCT_TYPES).join(', ')}`
+            });
+        }
 
         const where = {};
 

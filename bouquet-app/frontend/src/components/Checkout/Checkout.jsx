@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { CalendarDays, Clock3, CreditCard, Tag, Truck } from "lucide-react";
@@ -53,15 +53,22 @@ export default function Checkout() {
   const user = useSelector((state) => state.auth?.user);
 
   const [deliveryData, setDeliveryData] = useState({
-    fullName: "",
-    email: "",
-    phone: "",
-    state: "",
-    city: "",
-    street: "",
-    postalCode: "",
-    details: "",
+    fullName: user?.name ?? "",
+    email: user?.email ?? "",
+    phone: user?.phone ?? "",
+    state: user?.address?.state ?? "",
+    city: user?.address?.city ?? "",
+    street: user?.address?.street ?? "",
+    postalCode: user?.address?.zipCode ?? "",
+    details: user?.address?.details ?? "",
   });
+  const [billingData, setBillingData] = useState({
+    state: user?.billingState ?? "",
+    city: user?.billingCity ?? "",
+    street: user?.billingStreet ?? "",
+    postalCode: user?.billingZipCode ?? "",
+  });
+  const [sameAsBilling, setSameAsBilling] = useState(true);
   const [promoCode, setPromoCode] = useState("");
   const [appliedPromo, setAppliedPromo] = useState(null);
   const [availablePromoCodes, setAvailablePromoCodes] = useState([]);
@@ -175,31 +182,32 @@ export default function Checkout() {
   }, [dispatch]);
 
   useEffect(() => {
-    let isMounted = true;
+    const controller = new AbortController();
 
-    async function loadPromoCodes() {
+    const loadPromoCodes = async () => {
       try {
         const res = await fetch(apiUrl("/api/promos"), {
           credentials: "include",
+          signal: controller.signal,
         });
 
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) return;
-
-        if (isMounted) {
-          setAvailablePromoCodes(Array.isArray(data?.codes) ? data.codes : []);
+        if (!res.ok || controller.signal.aborted) {
+          return;
         }
+
+        setAvailablePromoCodes(Array.isArray(data?.codes) ? data.codes : []);
       } catch {
-        if (isMounted) {
+        if (!controller.signal.aborted) {
           setAvailablePromoCodes([]);
         }
       }
-    }
+    };
 
     loadPromoCodes();
 
     return () => {
-      isMounted = false;
+      controller.abort();
     };
   }, []);
 
@@ -215,6 +223,13 @@ export default function Checkout() {
         postalCode: "",
         details: "",
       });
+      setBillingData({
+        state: "",
+        city: "",
+        street: "",
+        postalCode: "",
+      });
+      setSameAsBilling(true);
       return;
     }
 
@@ -230,10 +245,32 @@ export default function Checkout() {
       postalCode: String(user?.address?.zipCode || ""),
       details: rawDetails,
     });
+
+    setBillingData({
+      state: String(user?.billingState || ""),
+      city: String(user?.billingCity || ""),
+      street: String(user?.billingStreet || ""),
+      postalCode: String(user?.billingZipCode || ""),
+    });
+
+    const hasBillingData = [
+      user?.billingState,
+      user?.billingCity,
+      user?.billingStreet,
+      user?.billingZipCode,
+    ].some((val) => String(val || "").trim());
+    setSameAsBilling(!hasBillingData);
   }, [user]);
 
   const handleDeliveryChange = (field) => (event) => {
     setDeliveryData((prev) => ({
+      ...prev,
+      [field]: event.target.value,
+    }));
+  };
+
+  const handleBillingChange = (field) => (event) => {
+    setBillingData((prev) => ({
       ...prev,
       [field]: event.target.value,
     }));
@@ -330,6 +367,14 @@ export default function Checkout() {
           zipCode: String(deliveryData.postalCode || "").trim(),
           details: String(deliveryData.details || "").trim(),
         },
+        billing: sameAsBilling
+          ? null
+          : {
+              state: String(billingData.state || "").trim(),
+              city: String(billingData.city || "").trim(),
+              street: String(billingData.street || "").trim(),
+              zipCode: String(billingData.postalCode || "").trim(),
+            },
         deliveryOption,
         promoCode: appliedPromo?.code || "",
         schedule: {
@@ -391,350 +436,418 @@ export default function Checkout() {
 
   return (
     <div className="checkout-page">
-    <section className="checkout-wrap">
-      <header className="checkout-head">
-        <h1>Checkout</h1>
-        <p>Complete your order and get your beautiful bouquet delivered</p>
-      </header>
+      <section className="checkout-wrap">
+        <header className="checkout-head">
+          <h1>Checkout</h1>
+          <p>Complete your order and get your beautiful bouquet delivered</p>
+        </header>
 
-      {loading && <div className="checkout-state">Loading cart...</div>}
-      {error && !loading && <div className="checkout-state error">{error}</div>}
+        {loading && <div className="checkout-state">Loading cart...</div>}
+        {error && !loading && (
+          <div className="checkout-state error">{error}</div>
+        )}
 
-      {!loading && !error && (
-        <div className="checkout-layout">
-          <div className="checkout-left">
-            <article className="checkout-card">
-              <h2>Delivery Details</h2>
+        {!loading && !error && (
+          <div className="checkout-layout">
+            <div className="checkout-left">
+              <article className="checkout-card">
+                <h2>Delivery Details</h2>
 
-              {user && (
-                <p className="checkout-prefill-note">
-                  Delivery data is prefilled from your account settings.
-                </p>
-              )}
-
-              <div className="checkout-grid two-cols">
-                <label>
-                  <span>Full Name *</span>
-                  <input
-                    type="text"
-                    value={deliveryData.fullName}
-                    onChange={handleDeliveryChange("fullName")}
-                    placeholder="John Doe"
-                  />
-                </label>
-
-                <label>
-                  <span>Phone Number *</span>
-                  <input
-                    type="tel"
-                    value={deliveryData.phone}
-                    onChange={handleDeliveryChange("phone")}
-                    placeholder="+40712345678"
-                  />
-                </label>
-
-                <label>
-                  <span>Email *</span>
-                  <input
-                    type="email"
-                    value={deliveryData.email}
-                    onChange={handleDeliveryChange("email")}
-                    placeholder="email@example.com"
-                  />
-                </label>
-              </div>
-
-              <div className="checkout-divider" />
-              <h3 className="checkout-subtitle">Address</h3>
-
-              <div className="checkout-grid two-cols">
-                <label>
-                  <span>County *</span>
-                  <input
-                    type="text"
-                    value={deliveryData.state}
-                    onChange={handleDeliveryChange("state")}
-                    placeholder="Ilfov"
-                  />
-                </label>
-
-                <label>
-                  <span>City *</span>
-                  <input
-                    type="text"
-                    value={deliveryData.city}
-                    onChange={handleDeliveryChange("city")}
-                    placeholder="Bucharest"
-                  />
-                </label>
-
-                <label>
-                  <span>Street *</span>
-                  <input
-                    type="text"
-                    value={deliveryData.street}
-                    onChange={handleDeliveryChange("street")}
-                    placeholder="Street, number"
-                  />
-                </label>
-
-                <label>
-                  <span>Postal Code *</span>
-                  <input
-                    type="text"
-                    value={deliveryData.postalCode}
-                    onChange={handleDeliveryChange("postalCode")}
-                    placeholder="010101"
-                  />
-                </label>
-
-                <label>
-                  <span>Address Details</span>
-                  <textarea
-                    rows={2}
-                    value={deliveryData.details}
-                    onChange={handleDeliveryChange("details")}
-                    placeholder="Apartment, floor, intercom, delivery notes"
-                  />
-                </label>
-              </div>
-            </article>
-
-            <article className="checkout-card">
-              <h2>
-                <Tag size={18} />
-                Promo Code
-              </h2>
-
-              <div className="promo-row">
-                <input
-                  type="text"
-                  value={promoCode}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    setPromoCode(value);
-                    setPromoError("");
-                    setPromoMessage("");
-
-                    if (
-                      appliedPromo?.code &&
-                      value.trim().toUpperCase() !== appliedPromo.code
-                    ) {
-                      setAppliedPromo(null);
-                    }
-                  }}
-                  placeholder="Enter promo code"
-                />
-                <button
-                  type="button"
-                  onClick={handlePromoApply}
-                  disabled={!promoCode.trim() || promoLoading}
-                >
-                  {promoLoading ? "Checking..." : "Apply"}
-                </button>
-              </div>
-
-              {promoError && <p className="promo-status error">{promoError}</p>}
-              {promoMessage && (
-                <p className="promo-status ok">{promoMessage}</p>
-              )}
-
-              <p className="promo-help">
-                {availablePromoCodes.length > 0 ? (
-                  <>
-                    Available codes:{" "}
-                    {availablePromoCodes.map((promo, index) => (
-                      <span key={promo.code}>
-                        <strong>{promo.code}</strong> ({promo.discountPercent}%
-                        off)
-                        {index < availablePromoCodes.length - 1 ? ", " : ""}
-                      </span>
-                    ))}
-                  </>
-                ) : (
-                  <>No active promo codes at the moment.</>
+                {user && (
+                  <p className="checkout-prefill-note">
+                    Delivery data is prefilled from your account settings.
+                  </p>
                 )}
-              </p>
-            </article>
 
-            <article className="checkout-card">
-              <h2>
-                <Truck size={18} />
-                Delivery Options
-              </h2>
-
-              <div className="checkout-options">
-                {DELIVERY_OPTIONS.map((option) => (
-                  <button
-                    key={option.id}
-                    className={`checkout-option ${
-                      deliveryOption === option.id ? "active" : ""
-                    }`}
-                    type="button"
-                    onClick={() => setDeliveryOption(option.id)}
-                  >
-                    <div>
-                      <strong>{option.title}</strong>
-                      <span>{option.subtitle}</span>
-                    </div>
-                    <b>RON {option.price.toFixed(2)}</b>
-                  </button>
-                ))}
-              </div>
-
-              <label className="schedule-toggle">
-                <input
-                  type="checkbox"
-                  checked={isScheduled}
-                  disabled={deliveryOption !== "STANDARD"}
-                  onChange={(event) => setIsScheduled(event.target.checked)}
-                />
-                <span>
-                  Schedule delivery for later (available only for Standard)
-                </span>
-              </label>
-
-              {isScheduled && (
-                <div className="checkout-grid two-cols schedule-fields">
+                <div className="checkout-grid two-cols">
                   <label>
-                    <span>
-                      <CalendarDays size={16} /> Day
-                    </span>
+                    <span>Full Name *</span>
                     <input
-                      type="date"
-                      value={scheduleDate}
-                      onChange={(event) => setScheduleDate(event.target.value)}
+                      type="text"
+                      value={deliveryData.fullName}
+                      onChange={handleDeliveryChange("fullName")}
+                      placeholder="John Doe"
                     />
                   </label>
 
                   <label>
-                    <span>
-                      <Clock3 size={16} /> Time Slot
-                    </span>
-                    <select
-                      value={timeSlot}
-                      onChange={(event) => setTimeSlot(event.target.value)}
-                    >
-                      <option>09:00 - 12:00</option>
-                      <option>12:00 - 15:00</option>
-                      <option>15:00 - 18:00</option>
-                      <option>18:00 - 21:00</option>
-                    </select>
+                    <span>Phone Number *</span>
+                    <input
+                      type="tel"
+                      value={deliveryData.phone}
+                      onChange={handleDeliveryChange("phone")}
+                      placeholder="+40712345678"
+                    />
+                  </label>
+
+                  <label>
+                    <span>Email *</span>
+                    <input
+                      type="email"
+                      value={deliveryData.email}
+                      onChange={handleDeliveryChange("email")}
+                      placeholder="email@example.com"
+                    />
                   </label>
                 </div>
-              )}
-            </article>
 
-            <article className="checkout-card">
-              <h2>
-                <CreditCard size={18} />
-                Payment Method
-              </h2>
+                <div className="checkout-divider" />
+                <h3 className="checkout-subtitle">Address</h3>
 
-              <div className="checkout-options">
-                {PAYMENT_METHODS.map((method) => (
-                  <button
-                    key={method.id}
-                    className={`checkout-option ${
-                      paymentMethod === method.id ? "active" : ""
-                    }`}
-                    type="button"
-                    disabled={
-                      deliveryOption === "EXPRESS" && method.id === "COD"
-                    }
-                    onClick={() => {
-                      setPaymentMethod(method.id);
-                      setCheckoutError("");
-                    }}
-                  >
-                    <div>
-                      <strong>{method.title}</strong>
-                      <span>{method.subtitle}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </article>
-          </div>
+                <div className="checkout-grid two-cols">
+                  <label>
+                    <span>County *</span>
+                    <input
+                      type="text"
+                      value={deliveryData.state}
+                      onChange={handleDeliveryChange("state")}
+                      placeholder="Ilfov"
+                    />
+                  </label>
 
-          <aside className="checkout-summary">
-            <div className="checkout-summary-card">
-              <h2>Order Summary</h2>
+                  <label>
+                    <span>City *</span>
+                    <input
+                      type="text"
+                      value={deliveryData.city}
+                      onChange={handleDeliveryChange("city")}
+                      placeholder="Bucharest"
+                    />
+                  </label>
 
-              <div className="checkout-lines">
-                {items.map((item, index) => {
-                  const quantity = Number(item.quantity || 1);
-                  const lineTotal = Number(item.unitPrice || 0) * quantity;
-                  return (
-                    <div className="checkout-line" key={item.id}>
-                      <div>
-                        <strong>Custom Bouquet #{index + 1}</strong>
-                        <span>
-                          RON {Number(item.unitPrice || 0).toFixed(2)} ×{" "}
-                          {quantity}
-                        </span>
-                      </div>
-                      <b>RON {lineTotal.toFixed(2)}</b>
-                    </div>
-                  );
-                })}
-              </div>
+                  <label>
+                    <span>Street *</span>
+                    <input
+                      type="text"
+                      value={deliveryData.street}
+                      onChange={handleDeliveryChange("street")}
+                      placeholder="Street, number"
+                    />
+                  </label>
 
-              <div className="checkout-summary-row">
-                <span>Subtotal</span>
-                <b>RON {subtotal.toFixed(2)}</b>
-              </div>
+                  <label>
+                    <span>Postal Code *</span>
+                    <input
+                      type="text"
+                      value={deliveryData.postalCode}
+                      onChange={handleDeliveryChange("postalCode")}
+                      placeholder="010101"
+                    />
+                  </label>
 
-              {promoDiscount > 0 && (
-                <div className="checkout-summary-row">
-                  <span>
-                    Discount ({appliedPromo?.code} -{" "}
-                    {appliedPromo?.discountPercent}
-                    %)
-                  </span>
-                  <b>- RON {promoDiscount.toFixed(2)}</b>
+                  <label>
+                    <span>Address Details</span>
+                    <textarea
+                      rows={2}
+                      value={deliveryData.details}
+                      onChange={handleDeliveryChange("details")}
+                      placeholder="Apartment, floor, intercom, delivery notes"
+                    />
+                  </label>
                 </div>
-              )}
+              </article>
 
-              <div className="checkout-summary-row">
-                <span>Delivery ({selectedDelivery?.title})</span>
-                <b>
-                  {deliveryFee === 0
-                    ? "FREE"
-                    : `RON ${Number(deliveryFee).toFixed(2)}`}
-                </b>
-              </div>
+              <article className="checkout-card">
+                <h2>
+                  <Tag size={18} />
+                  Billing Address
+                </h2>
 
-              <div className="cart-summary-divider" />
+                <div className="billing-toggle-row">
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={sameAsBilling}
+                      onChange={(e) => setSameAsBilling(e.target.checked)}
+                    />
+                    <span>Same as delivery address</span>
+                  </label>
+                </div>
 
-              <div className="checkout-summary-row total">
-                <span>Total</span>
-                <strong>RON {totalToPay.toFixed(2)}</strong>
-              </div>
+                {!sameAsBilling && (
+                  <div className="checkout-grid two-cols billing-fields">
+                    <label>
+                      <span>County *</span>
+                      <input
+                        type="text"
+                        value={billingData.state}
+                        onChange={handleBillingChange("state")}
+                        placeholder="Ilfov"
+                      />
+                    </label>
 
-              {checkoutError && (
-                <div className="checkout-submit-error">{checkoutError}</div>
-              )}
+                    <label>
+                      <span>City *</span>
+                      <input
+                        type="text"
+                        value={billingData.city}
+                        onChange={handleBillingChange("city")}
+                        placeholder="Bucharest"
+                      />
+                    </label>
 
-              <button
-                className="checkout-place-order"
-                type="button"
-                onClick={handlePlaceOrder}
-                disabled={placingOrder || items.length === 0}
-              >
-                {placingOrder
-                  ? "Placing Order..."
-                  : `Place Order - RON ${totalToPay.toFixed(2)}`}
-              </button>
+                    <label>
+                      <span>Street *</span>
+                      <input
+                        type="text"
+                        value={billingData.street}
+                        onChange={handleBillingChange("street")}
+                        placeholder="Street, number"
+                      />
+                    </label>
 
-              <p className="checkout-note">
-                By placing this order, you agree to our terms and conditions.
-              </p>
+                    <label>
+                      <span>Postal Code *</span>
+                      <input
+                        type="text"
+                        value={billingData.postalCode}
+                        onChange={handleBillingChange("postalCode")}
+                        placeholder="010101"
+                      />
+                    </label>
+                  </div>
+                )}
+              </article>
+
+              <article className="checkout-card">
+                <h2>
+                  <Tag size={18} />
+                  Promo Code
+                </h2>
+
+                <div className="promo-row">
+                  <input
+                    type="text"
+                    value={promoCode}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setPromoCode(value);
+                      setPromoError("");
+                      setPromoMessage("");
+
+                      if (
+                        appliedPromo?.code &&
+                        value.trim().toUpperCase() !== appliedPromo.code
+                      ) {
+                        setAppliedPromo(null);
+                      }
+                    }}
+                    placeholder="Enter promo code"
+                  />
+                  <button
+                    type="button"
+                    onClick={handlePromoApply}
+                    disabled={!promoCode.trim() || promoLoading}
+                  >
+                    {promoLoading ? "Checking..." : "Apply"}
+                  </button>
+                </div>
+
+                {promoError && (
+                  <p className="promo-status error">{promoError}</p>
+                )}
+                {promoMessage && (
+                  <p className="promo-status ok">{promoMessage}</p>
+                )}
+
+                <p className="promo-help">
+                  {availablePromoCodes.length > 0 ? (
+                    <>
+                      Available codes:{" "}
+                      {availablePromoCodes.map((promo, index) => (
+                        <span key={promo.code}>
+                          <strong>{promo.code}</strong> ({promo.discountPercent}
+                          % off)
+                          {index < availablePromoCodes.length - 1 ? ", " : ""}
+                        </span>
+                      ))}
+                    </>
+                  ) : (
+                    <>No active promo codes at the moment.</>
+                  )}
+                </p>
+              </article>
+
+              <article className="checkout-card">
+                <h2>
+                  <Truck size={18} />
+                  Delivery Options
+                </h2>
+
+                <div className="checkout-options">
+                  {DELIVERY_OPTIONS.map((option) => (
+                    <button
+                      key={option.id}
+                      className={`checkout-option ${
+                        deliveryOption === option.id ? "active" : ""
+                      }`}
+                      type="button"
+                      onClick={() => setDeliveryOption(option.id)}
+                    >
+                      <div>
+                        <strong>{option.title}</strong>
+                        <span>{option.subtitle}</span>
+                      </div>
+                      <b>RON {option.price.toFixed(2)}</b>
+                    </button>
+                  ))}
+                </div>
+
+                <label className="schedule-toggle">
+                  <input
+                    type="checkbox"
+                    checked={isScheduled}
+                    disabled={deliveryOption !== "STANDARD"}
+                    onChange={(event) => setIsScheduled(event.target.checked)}
+                  />
+                  <span>
+                    Schedule delivery for later (available only for Standard)
+                  </span>
+                </label>
+
+                {isScheduled && (
+                  <div className="checkout-grid two-cols schedule-fields">
+                    <label>
+                      <span>
+                        <CalendarDays size={16} /> Day
+                      </span>
+                      <input
+                        type="date"
+                        value={scheduleDate}
+                        onChange={(event) =>
+                          setScheduleDate(event.target.value)
+                        }
+                      />
+                    </label>
+
+                    <label>
+                      <span>
+                        <Clock3 size={16} /> Time Slot
+                      </span>
+                      <select
+                        value={timeSlot}
+                        onChange={(event) => setTimeSlot(event.target.value)}
+                      >
+                        <option>09:00 - 12:00</option>
+                        <option>12:00 - 15:00</option>
+                        <option>15:00 - 18:00</option>
+                        <option>18:00 - 21:00</option>
+                      </select>
+                    </label>
+                  </div>
+                )}
+              </article>
+
+              <article className="checkout-card">
+                <h2>
+                  <CreditCard size={18} />
+                  Payment Method
+                </h2>
+
+                <div className="checkout-options">
+                  {PAYMENT_METHODS.map((method) => (
+                    <button
+                      key={method.id}
+                      className={`checkout-option ${
+                        paymentMethod === method.id ? "active" : ""
+                      }`}
+                      type="button"
+                      disabled={
+                        deliveryOption === "EXPRESS" && method.id === "COD"
+                      }
+                      onClick={() => {
+                        setPaymentMethod(method.id);
+                        setCheckoutError("");
+                      }}
+                    >
+                      <div>
+                        <strong>{method.title}</strong>
+                        <span>{method.subtitle}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </article>
             </div>
-          </aside>
-        </div>
-      )}
-    </section>
+
+            <aside className="checkout-summary">
+              <div className="checkout-summary-card">
+                <h2>Order Summary</h2>
+
+                <div className="checkout-lines">
+                  {items.map((item, index) => {
+                    const quantity = Number(item.quantity || 1);
+                    const lineTotal = Number(item.unitPrice || 0) * quantity;
+                    return (
+                      <div className="checkout-line" key={item.id}>
+                        <div>
+                          <strong>Custom Bouquet #{index + 1}</strong>
+                          <span>
+                            RON {Number(item.unitPrice || 0).toFixed(2)} ×{" "}
+                            {quantity}
+                          </span>
+                        </div>
+                        <b>RON {lineTotal.toFixed(2)}</b>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="checkout-summary-row">
+                  <span>Subtotal</span>
+                  <b>RON {subtotal.toFixed(2)}</b>
+                </div>
+
+                {promoDiscount > 0 && (
+                  <div className="checkout-summary-row">
+                    <span>
+                      Discount ({appliedPromo?.code} -{" "}
+                      {appliedPromo?.discountPercent}
+                      %)
+                    </span>
+                    <b>- RON {promoDiscount.toFixed(2)}</b>
+                  </div>
+                )}
+
+                <div className="checkout-summary-row">
+                  <span>Delivery ({selectedDelivery?.title})</span>
+                  <b>
+                    {deliveryFee === 0
+                      ? "FREE"
+                      : `RON ${Number(deliveryFee).toFixed(2)}`}
+                  </b>
+                </div>
+
+                <div className="cart-summary-divider" />
+
+                <div className="checkout-summary-row total">
+                  <span>Total</span>
+                  <strong>RON {totalToPay.toFixed(2)}</strong>
+                </div>
+
+                {checkoutError && (
+                  <div className="checkout-submit-error">{checkoutError}</div>
+                )}
+
+                <button
+                  className="checkout-place-order"
+                  type="button"
+                  onClick={handlePlaceOrder}
+                  disabled={placingOrder || items.length === 0}
+                >
+                  {placingOrder
+                    ? "Placing Order..."
+                    : `Place Order - RON ${totalToPay.toFixed(2)}`}
+                </button>
+
+                <p className="checkout-note">
+                  By placing this order, you agree to our terms and conditions.
+                </p>
+              </div>
+            </aside>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

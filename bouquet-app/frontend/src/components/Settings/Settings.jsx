@@ -16,6 +16,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   deleteMyAccount,
   updateProfile,
+  loadMe,
 } from "../../stores/actions/auth-actions";
 import "./Settings.css";
 
@@ -25,12 +26,20 @@ export default function Settings() {
   const navigate = useNavigate();
   const user = useSelector((state) => state.auth?.user);
 
+  useEffect(() => {
+    dispatch(loadMe({ silent: true }));
+  }, [dispatch]);
+
   const [phone, setPhone] = useState("");
   const [street, setStreet] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [zipCode, setZipCode] = useState("");
   const [details, setDetails] = useState("");
+  const [billingStreet, setBillingStreet] = useState("");
+  const [billingCity, setBillingCity] = useState("");
+  const [billingState, setBillingState] = useState("");
+  const [billingZipCode, setBillingZipCode] = useState("");
   const [saving, setSaving] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleteDialogClosing, setIsDeleteDialogClosing] = useState(false);
@@ -45,6 +54,10 @@ export default function Settings() {
     setState(String(user?.address?.state || ""));
     setZipCode(String(user?.address?.zipCode || ""));
     setDetails(String(user?.address?.details || ""));
+    setBillingStreet(String(user?.billingStreet || ""));
+    setBillingCity(String(user?.billingCity || ""));
+    setBillingState(String(user?.billingState || ""));
+    setBillingZipCode(String(user?.billingZipCode || ""));
   }, [
     user?.phone,
     user?.address?.street,
@@ -52,6 +65,10 @@ export default function Settings() {
     user?.address?.state,
     user?.address?.zipCode,
     user?.address?.details,
+    user?.billingStreet,
+    user?.billingCity,
+    user?.billingState,
+    user?.billingZipCode,
   ]);
 
   const hasChanges = useMemo(() => {
@@ -61,6 +78,10 @@ export default function Settings() {
     const userState = String(user?.address?.state || "").trim();
     const userZipCode = String(user?.address?.zipCode || "").trim();
     const userDetails = String(user?.address?.details || "").trim();
+    const userBillingStreet = String(user?.billingStreet || "").trim();
+    const userBillingCity = String(user?.billingCity || "").trim();
+    const userBillingState = String(user?.billingState || "").trim();
+    const userBillingZipCode = String(user?.billingZipCode || "").trim();
 
     return (
       phone.trim() !== userPhone ||
@@ -68,9 +89,17 @@ export default function Settings() {
       city.trim() !== userCity ||
       state.trim() !== userState ||
       zipCode.trim() !== userZipCode ||
-      details.trim() !== userDetails
+      details.trim() !== userDetails ||
+      billingStreet.trim() !== userBillingStreet ||
+      billingCity.trim() !== userBillingCity ||
+      billingState.trim() !== userBillingState ||
+      billingZipCode.trim() !== userBillingZipCode
     );
   }, [
+    billingCity,
+    billingState,
+    billingStreet,
+    billingZipCode,
     city,
     details,
     phone,
@@ -81,6 +110,10 @@ export default function Settings() {
     user?.address?.state,
     user?.address?.street,
     user?.address?.zipCode,
+    user?.billingCity,
+    user?.billingState,
+    user?.billingStreet,
+    user?.billingZipCode,
     user?.phone,
     zipCode,
   ]);
@@ -97,13 +130,22 @@ export default function Settings() {
 
     setSaving(true);
     const result = await dispatch(
-      updateProfile(phone, {
-        street,
-        city,
-        state,
-        zipCode,
-        details,
-      }),
+      updateProfile(
+        phone,
+        {
+          street,
+          city,
+          state,
+          zipCode,
+          details,
+        },
+        {
+          street: billingStreet,
+          city: billingCity,
+          state: billingState,
+          zipCode: billingZipCode,
+        },
+      ),
     );
     setSaving(false);
 
@@ -272,6 +314,66 @@ export default function Settings() {
                 />
               </div>
             </label>
+          </div>
+
+          <div className="settings-divider" />
+
+          <div className="settings-grid settings-grid-1">
+            <p className="settings-subtitle">Billing Address (optional)</p>
+
+            <div className="settings-grid settings-grid-2 address-grid">
+              <label className="settings-field">
+                <span>Street</span>
+                <div className="settings-input-wrap">
+                  <MapPin size={16} />
+                  <input
+                    type="text"
+                    value={billingStreet}
+                    onChange={(e) => setBillingStreet(e.target.value)}
+                    placeholder="Street"
+                  />
+                </div>
+              </label>
+
+              <label className="settings-field">
+                <span>City</span>
+                <div className="settings-input-wrap">
+                  <MapPin size={16} />
+                  <input
+                    type="text"
+                    value={billingCity}
+                    onChange={(e) => setBillingCity(e.target.value)}
+                    placeholder="City"
+                  />
+                </div>
+              </label>
+
+              <label className="settings-field">
+                <span>County</span>
+                <div className="settings-input-wrap">
+                  <MapPin size={16} />
+                  <input
+                    type="text"
+                    value={billingState}
+                    onChange={(e) => setBillingState(e.target.value)}
+                    placeholder="County"
+                  />
+                </div>
+              </label>
+
+              <label className="settings-field">
+                <span>Postal Code</span>
+                <div className="settings-input-wrap">
+                  <MapPin size={16} />
+                  <input
+                    type="text"
+                    value={billingZipCode}
+                    onChange={(e) => setBillingZipCode(e.target.value)}
+                    placeholder="Postal code"
+                  />
+                </div>
+              </label>
+            </div>
           </div>
 
           <div className="settings-actions">

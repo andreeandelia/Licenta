@@ -45,7 +45,45 @@ function normalizeEmail(value) {
 }
 
 function isValidEmail(email) {
-    return email.includes('@') && email.includes('.');
+    // Fix #7: Proper email validation using simplified RFC 5322 pattern
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(email)) {
+        return false;
+    }
+
+    // RFC 5321 max length
+    if (email.length > 254) {
+        return false;
+    }
+
+    const [local, domain] = email.split('@');
+
+    // Local part must be 1-64 chars
+    if (local.length < 1 || local.length > 64) {
+        return false;
+    }
+
+    // Domain must have valid structure
+    if (!domain.includes('.')) {
+        return false;
+    }
+
+    // No consecutive dots
+    if (email.includes('..')) {
+        return false;
+    }
+
+    return true;
+}
+
+// Fix #14: Safe number calculation with null coalescing
+function safeNumber(value, defaultValue = 0) {
+    const num = Number(value ?? defaultValue);
+    if (!Number.isFinite(num) || num < 0) {
+        return defaultValue;
+    }
+    return num;
 }
 
 function parseScheduleDate(value) {
@@ -84,6 +122,20 @@ function validateSchedule(shouldSchedule, scheduledFor, scheduledSlot) {
     }
 
     return null;
+}
+
+function isValidPhoneNumber(phone) {
+    // Validate phone format: allow only digits, +, -, spaces, parentheses
+    // Must have at least 7 digits total
+    const phoneRegex = /^[\d\s\+\-\(\)]{7,30}$/;
+
+    if (!phoneRegex.test(phone)) {
+        return false;
+    }
+
+    // Minimum 7 digits requirement
+    const digitsOnly = phone.replace(/\D/g, '');
+    return digitsOnly.length >= 7;
 }
 
 function normalizeLocation(value) {
@@ -287,6 +339,7 @@ async function createCashOnDeliveryOrder(req, res, next) {
         }
 
         const delivery = req.body?.delivery || {};
+        const billing = req.body?.billing || {};
         const fullName = normalizeText(delivery.fullName);
         const email = normalizeEmail(delivery.email);
         const phone = normalizeText(delivery.phone);
@@ -295,6 +348,10 @@ async function createCashOnDeliveryOrder(req, res, next) {
         const state = normalizeText(delivery.state);
         const zipCode = normalizeText(delivery.zipCode);
         const details = normalizeText(delivery.details);
+        const billingStreet = normalizeText(billing.street);
+        const billingCity = normalizeText(billing.city);
+        const billingState = normalizeText(billing.state);
+        const billingZipCode = normalizeText(billing.zipCode);
         const deliveryOption = normalizeText(req.body?.deliveryOption || 'STANDARD').toUpperCase();
         const promoCode = normalizePromoCode(req.body?.promoCode);
         const shouldSchedule = Boolean(req.body?.schedule?.enabled);
@@ -385,11 +442,14 @@ async function createCashOnDeliveryOrder(req, res, next) {
 
         const subtotal = Number(
             normalizedCartItems.reduce(
-                (sum, item) => sum + Number(item.unitPrice || 0) * Number(item.quantity || 0),
+                (sum, item) => sum + safeNumber(item.unitPrice, 0) * safeNumber(item.quantity, 1),
                 0,
             ).toFixed(2),
         );
-        const discountPercent = promo ? Number(promo.discountPercent || 0) : 0;
+        const discountPercent = promo ? safeNumber(promo.discountPercent, 0) : 0;
+        if (!Number.isFinite(subtotal) || subtotal <= 0) {
+            return res.status(400).json({ error: 'Invalid order total' });
+        }
         const totalDiscount = Number(((subtotal * discountPercent) / 100).toFixed(2));
         const subtotalAfterDiscount = Number((subtotal - totalDiscount).toFixed(2));
         const deliveryTax = computeDeliveryTax(deliveryOption, subtotalAfterDiscount);
@@ -398,6 +458,21 @@ async function createCashOnDeliveryOrder(req, res, next) {
         const { requiredStockByProduct, productNameById } = buildRequiredStockFromCartItems(normalizedCartItems);
 
         const order = await prisma.$transaction(async (tx) => {
+            // Re-validate delivery rules inside transaction to prevent race conditions
+            // This ensures EXPRESS orders are validated at the exact time of execution
+            const txNow = new Date();
+            const txDeliveryRulesError = validateDeliveryBusinessRules({
+                deliveryOption,
+                paymentMethod,
+                state,
+                city,
+                shouldSchedule,
+                now: txNow,
+            });
+            if (txDeliveryRulesError) {
+                throw createBadRequestError(txDeliveryRulesError);
+            }
+
             for (const [productId, requiredQty] of requiredStockByProduct.entries()) {
                 const updated = await tx.product.updateMany({
                     where: {
@@ -422,6 +497,10 @@ async function createCashOnDeliveryOrder(req, res, next) {
                     customerEmail: email,
                     customerName: fullName,
                     customerPhone: phone,
+                    billingStreet: billingStreet || null,
+                    billingCity: billingCity || null,
+                    billingState: billingState || null,
+                    billingZipCode: billingZipCode || null,
                     deliveryStreet: street,
                     deliveryCity: city,
                     deliveryState: state,
@@ -493,6 +572,7 @@ async function createOnlinePaymentOrder(req, res, next) {
         }
 
         const delivery = req.body?.delivery || {};
+        const billing = req.body?.billing || {};
         const fullName = normalizeText(delivery.fullName);
         const email = normalizeEmail(delivery.email);
         const phone = normalizeText(delivery.phone);
@@ -501,6 +581,10 @@ async function createOnlinePaymentOrder(req, res, next) {
         const state = normalizeText(delivery.state);
         const zipCode = normalizeText(delivery.zipCode);
         const details = normalizeText(delivery.details);
+        const billingStreet = normalizeText(billing.street);
+        const billingCity = normalizeText(billing.city);
+        const billingState = normalizeText(billing.state);
+        const billingZipCode = normalizeText(billing.zipCode);
         const deliveryOption = normalizeText(req.body?.deliveryOption || 'STANDARD').toUpperCase();
         const promoCode = normalizePromoCode(req.body?.promoCode);
         const shouldSchedule = Boolean(req.body?.schedule?.enabled);
@@ -513,8 +597,8 @@ async function createOnlinePaymentOrder(req, res, next) {
         if (!isValidEmail(email)) {
             return res.status(400).json({ error: 'A valid email address is required' });
         }
-        if (!phone || phone.length > 30) {
-            return res.status(400).json({ error: 'Phone number is required and must have at most 30 characters' });
+        if (!phone || !isValidPhoneNumber(phone)) {
+            return res.status(400).json({ error: 'Phone number must contain 7-30 digits and may include +, -, spaces, or parentheses' });
         }
         if (!street || !city || !state || !zipCode) {
             return res.status(400).json({ error: 'Street, city, county and zip code are required' });
@@ -592,11 +676,14 @@ async function createOnlinePaymentOrder(req, res, next) {
 
         const subtotal = Number(
             normalizedCartItems.reduce(
-                (sum, item) => sum + Number(item.unitPrice || 0) * Number(item.quantity || 0),
+                (sum, item) => sum + safeNumber(item.unitPrice, 0) * safeNumber(item.quantity, 1),
                 0,
             ).toFixed(2),
         );
-        const discountPercent = promo ? Number(promo.discountPercent || 0) : 0;
+        const discountPercent = promo ? safeNumber(promo.discountPercent, 0) : 0;
+        if (!Number.isFinite(subtotal) || subtotal <= 0) {
+            return res.status(400).json({ error: 'Invalid order total' });
+        }
         const totalDiscount = Number(((subtotal * discountPercent) / 100).toFixed(2));
         const subtotalAfterDiscount = Number((subtotal - totalDiscount).toFixed(2));
         const deliveryTax = computeDeliveryTax(deliveryOption, subtotalAfterDiscount);
@@ -605,6 +692,35 @@ async function createOnlinePaymentOrder(req, res, next) {
         const { requiredStockByProduct, productNameById } = buildRequiredStockFromCartItems(normalizedCartItems);
 
         const orderId = randomUUID();
+
+        // CRITICAL FIX: Reserve stock BEFORE creating Stripe session to prevent overselling
+        // If this transaction fails, user gets error before Stripe session is created
+        try {
+            await prisma.$transaction(async (tx) => {
+                for (const [productId, requiredQty] of requiredStockByProduct.entries()) {
+                    const updated = await tx.product.updateMany({
+                        where: {
+                            id: productId,
+                            stock: { gte: requiredQty },
+                        },
+                        data: {
+                            stock: { decrement: requiredQty },
+                        },
+                    });
+
+                    if (updated.count === 0) {
+                        const productName = productNameById.get(productId) || 'selected product';
+                        throw createBadRequestError(`Insufficient stock for ${productName}`);
+                    }
+                }
+            });
+        } catch (err) {
+            // Stock reservation failed, don't proceed with Stripe
+            if (err.statusCode === 400) {
+                return res.status(400).json({ error: err.message });
+            }
+            throw err;
+        }
 
         const session = await stripe.checkout.sessions.create({
             mode: 'payment',
@@ -632,6 +748,21 @@ async function createOnlinePaymentOrder(req, res, next) {
 
         try {
             await prisma.$transaction(async (tx) => {
+                // Re-validate delivery rules inside transaction to prevent race conditions
+                // This ensures EXPRESS orders are validated at the exact time of execution
+                const txNow = new Date();
+                const txDeliveryRulesError = validateDeliveryBusinessRules({
+                    deliveryOption,
+                    paymentMethod,
+                    state,
+                    city,
+                    shouldSchedule,
+                    now: txNow,
+                });
+                if (txDeliveryRulesError) {
+                    throw createBadRequestError(txDeliveryRulesError);
+                }
+
                 await tx.order.create({
                     data: {
                         id: orderId,
@@ -640,6 +771,10 @@ async function createOnlinePaymentOrder(req, res, next) {
                         customerEmail: email,
                         customerName: fullName,
                         customerPhone: phone,
+                        billingStreet: billingStreet || null,
+                        billingCity: billingCity || null,
+                        billingState: billingState || null,
+                        billingZipCode: billingZipCode || null,
                         deliveryStreet: street,
                         deliveryCity: city,
                         deliveryState: state,
@@ -747,66 +882,14 @@ async function handleStripeWebhook(req, res, next) {
                 await prisma.$transaction(async (tx) => {
                     const order = await tx.order.findUnique({
                         where: { id: orderId },
-                        include: {
-                            lines: {
-                                include: {
-                                    bouquet: {
-                                        include: {
-                                            items: {
-                                                select: {
-                                                    productId: true,
-                                                    quantity: true,
-                                                    product: {
-                                                        select: {
-                                                            name: true,
-                                                        },
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
-                                },
-                            },
-                        },
                     });
 
                     if (!order || order.status !== 'CREATED') {
                         return;
                     }
 
-                    const requiredStockByProduct = buildRequiredStockFromOrderLines(order.lines);
-                    const productNameById = new Map();
-
-                    order.lines.forEach((line) => {
-                        const items = line?.bouquet?.items || [];
-                        items.forEach((item) => {
-                            if (!productNameById.has(item.productId)) {
-                                productNameById.set(item.productId, item?.product?.name || 'selected product');
-                            }
-                        });
-                    });
-
-                    for (const [productId, requiredQty] of requiredStockByProduct.entries()) {
-                        const updated = await tx.product.updateMany({
-                            where: {
-                                id: productId,
-                                stock: { gte: requiredQty },
-                            },
-                            data: {
-                                stock: { decrement: requiredQty },
-                            },
-                        });
-
-                        if (updated.count === 0) {
-                            const productName = productNameById.get(productId) || 'selected product';
-                            await tx.order.update({
-                                where: { id: orderId },
-                                data: { status: 'FAILED' },
-                            });
-                            return;
-                        }
-                    }
-
+                    // Stock was already reserved before Stripe session creation
+                    // Just update order status to CONFIRMED
                     await tx.order.update({
                         where: { id: orderId },
                         data: { status: 'CONFIRMED' },

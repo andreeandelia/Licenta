@@ -260,7 +260,7 @@ export default function AdminDashboard() {
       </header>
 
       {/* KPI ROW */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4!">
         {stats.map((item) => {
           const Icon = item.icon;
           const isAvgCard = item.title === "Avg Order Value";
@@ -300,7 +300,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* CHARTS ROW */}
-      <div className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+      <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]!">
         <article className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 sm:p-6">
           <h3 className="text-xl font-semibold tracking-tight text-slate-900">
             Sales Trend

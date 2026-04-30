@@ -199,6 +199,10 @@ export default function AdminOrders() {
       deliveryState: "",
       deliveryZipCode: "",
       deliveryDetails: "",
+      billingStreet: "",
+      billingCity: "",
+      billingState: "",
+      billingZipCode: "",
       scheduledFor: null,
       scheduledSlot: "",
       promoCode: "",
@@ -700,6 +704,21 @@ export default function AdminOrders() {
                         <span className="text-slate-500">Details:</span>
                         <span className="max-w-[70%] wrap-break-words text-right font-medium text-slate-900">
                           {selectedOrderDetail.deliveryDetails}
+                        </span>
+                      </div>
+                    )}
+
+                    {(selectedOrderDetail.billingStreet ||
+                      selectedOrderDetail.billingCity ||
+                      selectedOrderDetail.billingState ||
+                      selectedOrderDetail.billingZipCode) && (
+                      <div className="flex items-start justify-between gap-4 rounded-xl bg-blue-50 px-3 py-2">
+                        <span className="text-slate-500">Billing Address:</span>
+                        <span className="max-w-[70%] wrap-break-words text-right font-medium leading-5 text-slate-900">
+                          {selectedOrderDetail.billingStreet},{" "}
+                          {selectedOrderDetail.billingCity},{" "}
+                          {selectedOrderDetail.billingState}{" "}
+                          {selectedOrderDetail.billingZipCode}
                         </span>
                       </div>
                     )}

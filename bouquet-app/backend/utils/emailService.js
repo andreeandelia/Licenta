@@ -45,6 +45,29 @@ function buildDeliveryAddressLines(orderDetails) {
     };
 }
 
+function hasDifferentBillingAddress(orderDetails) {
+    const billingStreet = String(orderDetails?.billingStreet || '').trim();
+    const billingCity = String(orderDetails?.billingCity || '').trim();
+    const billingState = String(orderDetails?.billingState || '').trim();
+    const billingZipCode = String(orderDetails?.billingZipCode || '').trim();
+
+    return Boolean(billingStreet || billingCity || billingState || billingZipCode);
+}
+
+function buildBillingAddressLines(orderDetails) {
+    const street = String(orderDetails?.billingStreet || '').trim();
+    const city = String(orderDetails?.billingCity || '').trim();
+    const state = String(orderDetails?.billingState || '').trim();
+    const zipCode = String(orderDetails?.billingZipCode || '').trim();
+
+    const addressParts = [street, city, state, zipCode].filter(Boolean);
+    const address = addressParts.join(', ');
+
+    return {
+        address: address || 'N/A',
+    };
+}
+
 function normalizeOrderLines(lines) {
     if (!Array.isArray(lines)) {
         return [];
@@ -149,13 +172,18 @@ function buildOrderSummaryHtml(orderDetails) {
     const deliveryTax = formatMoney(orderDetails?.deliveryTax);
     const finalPrice = formatMoney(orderDetails?.finalPrice);
 
+    const hasDifferentBilling = hasDifferentBillingAddress(orderDetails);
+    const billingAddressLine = hasDifferentBilling
+        ? `<br />Billing address: ${escapeHtml(buildBillingAddressLines(orderDetails).address)}`
+        : '';
+
     return `
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:16px;background-color:#f7edf4;border:1px solid #f2d6e8;border-radius:12px;">
             <tr>
                 <td style="padding:12px 14px;font-family:Arial,sans-serif;font-size:13px;color:#6b7280;line-height:1.6;">
                     Delivery method: ${escapeHtml(deliveryOption)}<br />
                     Address: ${escapeHtml(address)}<br />
-                    Delivery details: ${escapeHtml(deliveryDetails)}<br />
+                    Delivery details: ${escapeHtml(deliveryDetails)}${billingAddressLine}<br />
                     Transport: ${escapeHtml(deliveryTax)}<br />
                     Total order: ${escapeHtml(finalPrice)}
                 </td>
@@ -170,15 +198,21 @@ function buildOrderSummaryText(orderDetails) {
     const deliveryTax = formatMoney(orderDetails?.deliveryTax);
     const finalPrice = formatMoney(orderDetails?.finalPrice);
 
+    const hasDifferentBilling = hasDifferentBillingAddress(orderDetails);
+    const billingAddressLine = hasDifferentBilling
+        ? `Billing address: ${buildBillingAddressLines(orderDetails).address}\n`
+        : '';
+
     return [
         '',
         'Delivery summary:',
         `Delivery method: ${deliveryOption}`,
         `Address: ${address}`,
         `Delivery details: ${deliveryDetails}`,
+        billingAddressLine,
         `Transport: ${deliveryTax}`,
         `Total order: ${finalPrice}`,
-    ].join('\n');
+    ].filter(Boolean).join('\n');
 }
 
 function getTransporter() {

@@ -159,6 +159,10 @@ export async function listAdminProducts(req, res, next) {
         const search = String(req.query.search || '').trim();
         const type = String(req.query.type || '').trim().toUpperCase();
 
+        if (search.length > 100) {
+            return res.status(400).json({ error: 'Search query must be at most 100 characters long' });
+        }
+
         if (type && !PRODUCT_TYPES.has(type)) {
             return res.status(400).json({ error: 'Invalid product type filter' });
         }

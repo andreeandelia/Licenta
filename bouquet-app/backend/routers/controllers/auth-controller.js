@@ -490,6 +490,8 @@ async function updateProfile(req, res, next) {
     try {
         const phone = String(req.body?.phone || '').trim();
         const addressInput = req.body?.address;
+        const billingAddressInput = req.body?.billingAddress;
+
         const isAddressObject = addressInput && typeof addressInput === 'object';
         const legacyAddressText = !isAddressObject ? String(addressInput || '').trim() : '';
 
@@ -499,7 +501,13 @@ async function updateProfile(req, res, next) {
         const zipCode = isAddressObject ? String(addressInput.zipCode || '').trim() : '';
         const details = isAddressObject ? String(addressInput.details || '').trim() : legacyAddressText;
 
+        const billingStreet = billingAddressInput ? String(billingAddressInput.street || '').trim() : '';
+        const billingCity = billingAddressInput ? String(billingAddressInput.city || '').trim() : '';
+        const billingState = billingAddressInput ? String(billingAddressInput.state || '').trim() : '';
+        const billingZipCode = billingAddressInput ? String(billingAddressInput.zipCode || '').trim() : '';
+
         const hasAddressData = [street, city, state, zipCode, details].some((part) => part.length > 0);
+        const hasBillingData = [billingStreet, billingCity, billingState, billingZipCode].some((part) => part.length > 0);
 
         if (phone.length > 30) {
             return res.status(400).json({ error: 'Phone number must have at most 30 characters' });
@@ -509,6 +517,10 @@ async function updateProfile(req, res, next) {
             where: { id: req.userId },
             data: {
                 phone: phone || null,
+                billingStreet: hasBillingData ? billingStreet || null : null,
+                billingCity: hasBillingData ? billingCity || null : null,
+                billingState: hasBillingData ? billingState || null : null,
+                billingZipCode: hasBillingData ? billingZipCode || null : null,
             },
         });
 

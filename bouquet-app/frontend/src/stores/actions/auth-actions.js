@@ -25,6 +25,18 @@ function normalizeChatMessages(value) {
         .slice(-MAX_CHAT_MESSAGES);
 }
 
+// Fix #12: Deduplication function to prevent circular refs
+function deduplicateMessages(messages) {
+    const seen = new Set();
+    return messages.filter((msg) => {
+        const key = `${msg.role}::${msg.content}`;
+        if (seen.has(key)) {
+            return false;
+        }
+        seen.add(key);
+        return true;
+    });
+}
 function migrateGuestChatToUser(userId) {
     if (!userId) return;
 
@@ -46,10 +58,11 @@ function migrateGuestChatToUser(userId) {
         const userRaw = localStorage.getItem(userKey);
         const userParsed = userRaw ? JSON.parse(userRaw) : null;
         const userMessages = normalizeChatMessages(userParsed?.messages);
-        const mergedMessages = [...userMessages, ...guestMessages].slice(-MAX_CHAT_MESSAGES);
+        // Fix #12: Deduplicate merged messages to prevent circular references
+        const mergedMessages = deduplicateMessages([...userMessages, ...guestMessages]).slice(-MAX_CHAT_MESSAGES);
 
         localStorage.setItem(userKey, JSON.stringify({
-            version: 1,
+            version: 2,
             updatedAt: Date.now(),
             messages: mergedMessages,
         }));
@@ -79,8 +92,13 @@ function clearPersistedChatFromLocalStorage() {
     }
 }
 
-export const loadMe = () => async (dispatch) => {
-    dispatch({ type: 'AUTH_LOADING' });
+export const loadMe = (options = {}) => async (dispatch) => {
+    const { silent = false } = options;
+
+    if (!silent) {
+        dispatch({ type: "AUTH_LOADING" });
+    }
+
     try {
         const res = await fetch(apiUrl("/api/auth/me"), {
             credentials: 'include'
@@ -166,13 +184,13 @@ export const logout = () => async (dispatch) => {
     }
 }
 
-export const updateProfile = (phone, address) => async (dispatch) => {
+export const updateProfile = (phone, address, billingAddress) => async (dispatch) => {
     try {
         const res = await fetch(apiUrl("/api/auth/profile"), {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ phone, address }),
+            body: JSON.stringify({ phone, address, billingAddress }),
         });
 
         let data = null;

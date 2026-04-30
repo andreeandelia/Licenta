@@ -26,6 +26,10 @@ model User {
   resetPasswordExpiresAt DateTime?
   phone                  String?
   address                Address?
+  billingStreet          String?
+  billingCity            String?
+  billingState           String?
+  billingZipCode         String?
   orders                 Order[]
   wishlist               WishlistItem[]
   cartItems              CartItems[]
@@ -68,6 +72,10 @@ model Order {
   customerEmail        String?
   customerName         String
   customerPhone        String
+  billingStreet        String?
+  billingCity          String?
+  billingState         String?
+  billingZipCode       String?
   deliveryStreet       String
   deliveryCity         String
   deliveryState        String
