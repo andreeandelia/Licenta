@@ -66,6 +66,19 @@ function formatAddressForResponse(address) {
     };
 }
 
+function getAuthCookieOptions() {
+    const isProduction =
+        process.env.NODE_ENV === 'production' ||
+        String(process.env.APP_BASE_URL || '').startsWith('https://');
+
+    return {
+        httpOnly: true,
+        sameSite: isProduction ? 'none' : 'lax',
+        secure: isProduction,
+        path: '/',
+    };
+}
+
 function setAuthCookie(res, userId) {
     if (!process.env.JWT_SECRET) {
         throw new Error('JWT_SECRET is not configured');
@@ -74,9 +87,8 @@ function setAuthCookie(res, userId) {
     const token = jwt.sign({ sub: userId }, process.env.JWT_SECRET, { expiresIn: '2h' });
 
     res.cookie('access_token', token, {
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: false,
+        ...getAuthCookieOptions(),
+        maxAge: 2 * 60 * 60 * 1000,
     });
 }
 
@@ -557,11 +569,7 @@ async function updateProfile(req, res, next) {
 }
 
 function logout(req, res) {
-    res.clearCookie('access_token', {
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: false
-    });
+    res.clearCookie('access_token', getAuthCookieOptions());
 
     return res.json({ ok: true });
 }
@@ -665,11 +673,7 @@ async function deleteAccount(req, res, next) {
             });
         });
 
-        res.clearCookie('access_token', {
-            httpOnly: true,
-            sameSite: 'lax',
-            secure: false,
-        });
+        res.clearCookie('access_token', getAuthCookieOptions());
 
         return res.status(200).json({ ok: true });
     }
