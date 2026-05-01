@@ -1,23 +1,23 @@
 import "./ShopByCategory.css";
-import flowersImg from "../../assets/flowers.jpg";
-import wrappingImg from "../../assets/wrapping.jpg";
-import accessoriesImg from "../../assets/accessories.jpg";
 
 const categories = [
   {
     title: "Fresh Flowers",
     subtitle: "Premium roses, tulips, and more",
-    image: flowersImg,
+    image:
+      "https://res.cloudinary.com/drhtz5olh/image/upload/q_auto/f_auto/v1777587446/flowers_wvrkzl.jpg",
   },
   {
     title: "Elegant Wrapping",
     subtitle: "Beautiful papers, ribbons, and wrapping options",
-    image: wrappingImg,
+    image:
+      "https://res.cloudinary.com/drhtz5olh/image/upload/q_auto/f_auto/v1777587712/wrapping_jznxpp.jpg",
   },
   {
     title: "Accessories",
     subtitle: "Cards, ribbons, vases, and special touches",
-    image: accessoriesImg,
+    image:
+      "https://res.cloudinary.com/drhtz5olh/image/upload/q_auto/f_auto/v1777587750/accessories_y2hpm0.jpg",
   },
 ];
 

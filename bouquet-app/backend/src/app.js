@@ -2,7 +2,6 @@ import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import dotenv from 'dotenv'
-import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { PrismaClient } from '@prisma/client'
@@ -59,10 +58,6 @@ app.post('/api/orders/stripe/webhook', express.raw({ type: 'application/json' })
 
 app.use(express.json());
 app.use(cookieParser());
-
-const uploadsRoot = path.join(process.cwd(), 'uploads');
-fs.mkdirSync(path.join(uploadsRoot, 'products'), { recursive: true });
-app.use('/uploads', express.static(uploadsRoot));
 
 // routes
 app.use('/api/auth', authRouter);

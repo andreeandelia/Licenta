@@ -87,7 +87,11 @@ function resolveImageSrc(imageUrl) {
   if (!imageUrl) return "";
 
   const raw = String(imageUrl).trim();
-  if (/^https?:\/\//i.test(raw) || raw.startsWith("/uploads/")) {
+  if (/^https?:\/\//i.test(raw)) {
+    return raw;
+  }
+
+  if (raw.startsWith("/uploads/")) {
     return mediaUrl(raw);
   }
 

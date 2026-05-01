@@ -1,6 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import fs from 'fs/promises';
-import path from 'path';
+import { uploadBufferToCloudinary } from "../../utils/cloudinary.js";
 
 const prisma = new PrismaClient();
 const TREND_MONTHS = 6;
@@ -79,32 +78,6 @@ function toProductResponse(product) {
         imageUrl: product.imageUrl,
         description: product.description,
     };
-}
-
-function buildUploadedImageUrl(file) {
-    if (!file?.filename) return '';
-    return `/uploads/products/${file.filename}`;
-}
-
-async function removeUploadedFile(file) {
-    if (!file?.path) return;
-    try {
-        await fs.unlink(file.path);
-    } catch {
-        // noop
-    }
-}
-
-async function removeStoredUpload(imageUrl) {
-    const normalized = String(imageUrl || '');
-    if (!normalized.startsWith('/uploads/products/')) return;
-
-    const absolutePath = path.join(process.cwd(), normalized.replace(/^\//, ''));
-    try {
-        await fs.unlink(absolutePath);
-    } catch {
-        // noop
-    }
 }
 
 function parseProductPayload(payload = {}, options = {}) {
@@ -205,18 +178,29 @@ export async function listAdminProducts(req, res, next) {
 
 export async function createAdminProduct(req, res, next) {
     try {
+        if (!req.file?.buffer) {
+            return res.status(400).json({ error: "Product image is required" });
+        }
+
         const parsed = parseProductPayload(req.body, {
-            imageUrl: buildUploadedImageUrl(req.file),
+            imageUrl: "pending-cloudinary-upload",
             requireImage: true,
         });
 
         if (parsed.error) {
-            await removeUploadedFile(req.file);
             return res.status(400).json({ error: parsed.error });
         }
 
+        const uploadResult = await uploadBufferToCloudinary(
+            req.file.buffer,
+            "bouquet-products",
+        );
+
         const product = await prisma.product.create({
-            data: parsed.data,
+            data: {
+                ...parsed.data,
+                imageUrl: uploadResult.secure_url,
+            },
             select: {
                 id: true,
                 name: true,
@@ -233,7 +217,6 @@ export async function createAdminProduct(req, res, next) {
             item: toProductResponse(product),
         });
     } catch (err) {
-        await removeUploadedFile(req.file);
         return next(err);
     }
 }
@@ -247,23 +230,35 @@ export async function updateAdminProduct(req, res, next) {
         });
 
         if (!existing) {
-            await removeUploadedFile(req.file);
             return res.status(404).json({ error: 'Product not found' });
         }
 
         const parsed = parseProductPayload(req.body, {
-            imageUrl: buildUploadedImageUrl(req.file) || existing.imageUrl,
+            imageUrl: existing.imageUrl,
             requireImage: true,
         });
 
         if (parsed.error) {
-            await removeUploadedFile(req.file);
             return res.status(400).json({ error: parsed.error });
+        }
+
+        let nextImageUrl = existing.imageUrl;
+
+        if (req.file?.buffer) {
+            const uploadResult = await uploadBufferToCloudinary(
+                req.file.buffer,
+                "bouquet-products",
+            );
+
+            nextImageUrl = uploadResult.secure_url;
         }
 
         const product = await prisma.product.update({
             where: { id },
-            data: parsed.data,
+            data: {
+                ...parsed.data,
+                imageUrl: nextImageUrl,
+            },
             select: {
                 id: true,
                 name: true,
@@ -276,15 +271,10 @@ export async function updateAdminProduct(req, res, next) {
             },
         });
 
-        if (req.file && existing.imageUrl && existing.imageUrl !== product.imageUrl) {
-            await removeStoredUpload(existing.imageUrl);
-        }
-
         return res.json({
             item: toProductResponse(product),
         });
     } catch (err) {
-        await removeUploadedFile(req.file);
         return next(err);
     }
 }
@@ -304,8 +294,6 @@ export async function deleteAdminProduct(req, res, next) {
         await prisma.product.delete({
             where: { id },
         });
-
-        await removeStoredUpload(existing.imageUrl);
 
         return res.status(204).send();
     } catch (err) {

@@ -65,7 +65,14 @@ function toFormValues(product) {
 
 function resolveProductImage(imageUrl) {
   if (!imageUrl) return "";
-  return mediaUrl(imageUrl);
+
+  const raw = String(imageUrl).trim();
+
+  if (/^https?:\/\//i.test(raw)) {
+    return raw;
+  }
+
+  return mediaUrl(raw);
 }
 
 function revokePreview(url) {

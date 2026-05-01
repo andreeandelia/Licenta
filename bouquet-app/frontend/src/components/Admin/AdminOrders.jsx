@@ -8,7 +8,7 @@ import {
   Truck,
   X,
 } from "lucide-react";
-import { apiUrl } from "../../config/global";
+import { apiUrl, mediaUrl } from "../../config/global";
 import "./AdminOrders.css";
 import "./AdminConfirmDialog.css";
 
@@ -63,6 +63,18 @@ function formatDate(dateStr) {
 
   const date = new Date(dateStr);
   return date.toLocaleDateString("ro-RO");
+}
+
+function resolveOrderProductImage(imageUrl) {
+  if (!imageUrl) return "";
+
+  const raw = String(imageUrl).trim();
+
+  if (/^https?:\/\//i.test(raw)) {
+    return raw;
+  }
+
+  return mediaUrl(raw);
 }
 
 function getStatusLabel(status) {
@@ -776,7 +788,9 @@ export default function AdminOrders() {
                               <div className="flex min-w-0 items-center gap-2.5">
                                 {item.product?.imageUrl && (
                                   <img
-                                    src={item.product.imageUrl}
+                                    src={resolveOrderProductImage(
+                                      item.product.imageUrl,
+                                    )}
                                     alt={item.product.name}
                                     className="h-10 w-10 shrink-0 rounded-lg object-cover"
                                   />
