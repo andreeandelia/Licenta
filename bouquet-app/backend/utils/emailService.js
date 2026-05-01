@@ -1,6 +1,46 @@
-import nodemailer from 'nodemailer'
+import { Resend } from 'resend';
 
-let transporter;
+let resendClient;
+
+function getResendClient() {
+    if (!resendClient) {
+        const apiKey = String(process.env.RESEND_API_KEY || '').trim();
+
+        if (!apiKey) {
+            throw new Error('RESEND_API_KEY is required for sending emails');
+        }
+
+        resendClient = new Resend(apiKey);
+    }
+
+    return resendClient;
+}
+
+function getFromEmail() {
+    return (
+        process.env.EMAIL_FROM ||
+        process.env.SMTP_FROM ||
+        'Bloomery <onboarding@resend.dev>'
+    );
+}
+
+async function sendEmail({ to, subject, text, html }) {
+    const resend = getResendClient();
+
+    const { data, error } = await resend.emails.send({
+        from: getFromEmail(),
+        to,
+        subject,
+        text,
+        html,
+    });
+
+    if (error) {
+        throw new Error(error?.message || 'Could not send email with Resend');
+    }
+
+    return data;
+}
 
 function escapeHtml(value) {
     return String(value || '')
@@ -78,22 +118,32 @@ function normalizeOrderLines(lines) {
         quantity: Math.max(1, Number(line?.quantity || 1)),
         totalPrice: round2(line?.totalPrice),
         priceBouquetSnapshot: round2(line?.priceBouquetSnapshot),
-        bouquet: line?.bouquet ? {
-            id: line.bouquet.id || '',
-            price: round2(line.bouquet.price),
-            greetingCardMessage: String(line.bouquet.greetingCardMessage || '').trim(),
-            items: Array.isArray(line.bouquet.items) ? line.bouquet.items.map((item) => ({
-                id: item?.id || '',
-                quantity: Math.max(1, Number(item?.quantity || 1)),
-                priceSnapshot: round2(item?.priceSnapshot),
-                product: item?.product ? {
-                    id: item.product.id || '',
-                    name: String(item.product.name || '').trim(),
-                    type: String(item.product.type || '').trim(),
-                    imageUrl: String(item.product.imageUrl || '').trim(),
-                } : null,
-            })) : [],
-        } : null,
+        bouquet: line?.bouquet
+            ? {
+                id: line.bouquet.id || '',
+                price: round2(line.bouquet.price),
+                greetingCardMessage: String(
+                    line.bouquet.greetingCardMessage || '',
+                ).trim(),
+                items: Array.isArray(line.bouquet.items)
+                    ? line.bouquet.items.map((item) => ({
+                        id: item?.id || '',
+                        quantity: Math.max(1, Number(item?.quantity || 1)),
+                        priceSnapshot: round2(item?.priceSnapshot),
+                        product: item?.product
+                            ? {
+                                id: item.product.id || '',
+                                name: String(item.product.name || '').trim(),
+                                type: String(item.product.type || '').trim(),
+                                imageUrl: String(
+                                    item.product.imageUrl || '',
+                                ).trim(),
+                            }
+                            : null,
+                    }))
+                    : [],
+            }
+            : null,
     }));
 }
 
@@ -104,18 +154,23 @@ function buildOrderItemsHtml(lines) {
         return '';
     }
 
-    const rowsHtml = normalizedLines.map((line, index) => {
-        const bouquetNumber = index + 1;
-        const bouquetLabel = line.bouquet?.items?.length
-            ? line.bouquet.items
-                .map((item) => `${escapeHtml(item.product?.name || 'Product')} x${item.quantity}`)
-                .join(', ')
-            : 'No bouquet details available';
-        const greetingCardMessage = line.bouquet?.greetingCardMessage
-            ? escapeHtml(line.bouquet.greetingCardMessage)
-            : 'None';
+    const rowsHtml = normalizedLines
+        .map((line, index) => {
+            const bouquetNumber = index + 1;
+            const bouquetLabel = line.bouquet?.items?.length
+                ? line.bouquet.items
+                    .map(
+                        (item) =>
+                            `${escapeHtml(item.product?.name || 'Product')} x${item.quantity}`,
+                    )
+                    .join(', ')
+                : 'No bouquet details available';
 
-        return `
+            const greetingCardMessage = line.bouquet?.greetingCardMessage
+                ? escapeHtml(line.bouquet.greetingCardMessage)
+                : 'None';
+
+            return `
             <tr>
                 <td style="padding:14px 0;border-top:1px solid #f2d6e8;font-family:Arial,sans-serif;color:#111827;">
                     <p style="margin:0 0 4px 0;font-size:14px;font-weight:700;">Custom Bouquet #${bouquetNumber}</p>
@@ -125,7 +180,8 @@ function buildOrderItemsHtml(lines) {
                 </td>
             </tr>
         `;
-    }).join('');
+        })
+        .join('');
 
     return `
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:16px;background-color:#fff7fb;border:1px solid #f2d6e8;border-radius:12px;padding:0 14px;">
@@ -153,6 +209,7 @@ function buildOrderItemsText(lines) {
                 .map((item) => `${item.product?.name || 'Product'} x${item.quantity}`)
                 .join(', ')
             : 'No bouquet details available';
+
         const greetingCardMessage = line.bouquet?.greetingCardMessage || 'None';
 
         return [
@@ -212,36 +269,20 @@ function buildOrderSummaryText(orderDetails) {
         billingAddressLine,
         `Transport: ${deliveryTax}`,
         `Total order: ${finalPrice}`,
-    ].filter(Boolean).join('\n');
-}
-
-function getTransporter() {
-    if (!transporter) {
-        const smtpUser = process.env.SMTP_USER;
-        const smtpPass = process.env.SMTP_PASS;
-
-        if (!smtpUser || !smtpPass) {
-            throw new Error('SMTP_USER and SMTP_PASS are required for Gmail SMTP');
-        }
-
-        transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                user: smtpUser,
-                pass: smtpPass,
-            },
-        });
-    }
-
-    return transporter;
+    ]
+        .filter(Boolean)
+        .join('\n');
 }
 
 async function sendVerificationEmail(to, token, userName) {
-    const mailer = getTransporter();
     const backendPort = process.env.PORT || '8081';
-    const appBaseUrl = process.env.APP_BASE_URL || `http://localhost:${backendPort}`;
-    const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER;
-    const verifyUrl = `${appBaseUrl}/api/auth/verify?token=${encodeURIComponent(token)}`;
+    const appBaseUrl =
+        process.env.APP_BASE_URL || `http://localhost:${backendPort}`;
+
+    const verifyUrl = `${appBaseUrl}/api/auth/verify?token=${encodeURIComponent(
+        token,
+    )}`;
+
     const normalizedName = String(userName || '').trim();
     const safeName = escapeHtml(normalizedName || 'there');
 
@@ -289,24 +330,26 @@ async function sendVerificationEmail(to, token, userName) {
                 </table>
         `;
 
-    const text = `Confirm your email address\n\nHi ${normalizedName || 'there'},\n\nThank you for signing up.\nVerify your account here: ${verifyUrl}\n\nThis verification link expires in 24 hours.`;
+    const text = `Confirm your email address\n\nHi ${normalizedName || 'there'
+        },\n\nThank you for signing up.\nVerify your account here: ${verifyUrl}\n\nThis verification link expires in 24 hours.`;
 
-    const result = await mailer.sendMail({
-        from: fromEmail,
+    return sendEmail({
         to,
         subject: 'Verify your email address',
         text,
         html,
     });
-
-    return result;
 }
 
 async function sendPasswordResetEmail(to, token, userName) {
-    const mailer = getTransporter();
-    const frontendBaseUrl = String(process.env.FRONTEND_BASE_URL || 'http://localhost:5173').replace(/\/$/, '');
-    const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER;
-    const resetUrl = `${frontendBaseUrl}/reset-password?token=${encodeURIComponent(token)}`;
+    const frontendBaseUrl = String(
+        process.env.FRONTEND_BASE_URL || 'http://localhost:5173',
+    ).replace(/\/$/, '');
+
+    const resetUrl = `${frontendBaseUrl}/reset-password?token=${encodeURIComponent(
+        token,
+    )}`;
+
     const normalizedName = String(userName || '').trim();
     const safeName = escapeHtml(normalizedName || 'there');
 
@@ -354,17 +397,15 @@ async function sendPasswordResetEmail(to, token, userName) {
                 </table>
         `;
 
-    const text = `Reset your password\n\nHi ${normalizedName || 'there'},\n\nUse this link to reset your password: ${resetUrl}\n\nThis link expires in 30 minutes.`;
+    const text = `Reset your password\n\nHi ${normalizedName || 'there'
+        },\n\nUse this link to reset your password: ${resetUrl}\n\nThis link expires in 30 minutes.`;
 
-    const result = await mailer.sendMail({
-        from: fromEmail,
+    return sendEmail({
         to,
         subject: 'Reset your password',
         text,
         html,
     });
-
-    return result;
 }
 
 const ORDER_STATUS_EMAIL_CONTENT = {
@@ -390,17 +431,24 @@ const ORDER_STATUS_EMAIL_CONTENT = {
     },
 };
 
-async function sendOrderStatusEmail(to, orderId, orderStatus, customerName, orderDetails = {}) {
-    const content = ORDER_STATUS_EMAIL_CONTENT[String(orderStatus || '').toUpperCase()];
+async function sendOrderStatusEmail(
+    to,
+    orderId,
+    orderStatus,
+    customerName,
+    orderDetails = {},
+) {
+    const content =
+        ORDER_STATUS_EMAIL_CONTENT[String(orderStatus || '').toUpperCase()];
+
     if (!content) {
         return null;
     }
 
-    const mailer = getTransporter();
-    const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER;
     const normalizedName = String(customerName || '').trim();
     const safeName = escapeHtml(normalizedName || 'there');
     const safeOrderId = escapeHtml(String(orderId || ''));
+
     const orderItemsHtml = buildOrderItemsHtml(orderDetails?.lines);
     const orderItemsText = buildOrderItemsText(orderDetails?.lines);
     const orderSummaryHtml = buildOrderSummaryHtml(orderDetails);
@@ -439,18 +487,23 @@ async function sendOrderStatusEmail(to, orderId, orderStatus, customerName, orde
                 </table>
         `;
 
-    const subjectWithOrderNumber = `${content.subject}`;
-    const text = `${content.heading}\n\nHi ${normalizedName || 'there'},\n\n${content.text}\n\nOrder number: ${String(orderId || '')}\nCurrent status: ${String(orderStatus || '')}${orderSummaryText}${orderItemsText}`;
+    const text = `${content.heading}\n\nHi ${normalizedName || 'there'
+        },\n\n${content.text}\n\nOrder number: ${String(
+            orderId || '',
+        )}\nCurrent status: ${String(
+            orderStatus || '',
+        )}${orderSummaryText}${orderItemsText}`;
 
-    const result = await mailer.sendMail({
-        from: fromEmail,
+    return sendEmail({
         to,
-        subject: subjectWithOrderNumber,
+        subject: content.subject,
         text,
         html,
     });
-
-    return result;
 }
 
-export { sendVerificationEmail, sendPasswordResetEmail, sendOrderStatusEmail };
+export {
+    sendVerificationEmail,
+    sendPasswordResetEmail,
+    sendOrderStatusEmail,
+};
