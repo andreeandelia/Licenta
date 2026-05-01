@@ -43,7 +43,7 @@ function App() {
         path="/"
         element={
           <Navigate
-            to={user ? (isAdmin ? "/admin/dashboard" : "/home") : "/auth"}
+            to={user ? (isAdmin ? "/admin/dashboard" : "/home") : "/home"}
             replace
           />
         }
